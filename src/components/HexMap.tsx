@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -222,7 +223,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
   return (
     <div className="relative h-full w-full">
       {/* Map container */}
-      <div ref={mapContainer} className="map-container" />
+      <div ref={mapContainer} className="map-container h-full" style={{position: 'absolute', top: 0, bottom: 0, width: '100%'}} />
 
       {/* Controls panel */}
       <div className="absolute top-4 left-4 z-10 w-72 bg-opacity-90 animate-fade-in">

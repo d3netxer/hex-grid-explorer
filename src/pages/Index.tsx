@@ -1,35 +1,17 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import HexMap from '@/components/HexMap';
-import MapTokenSetup from '@/components/MapTokenSetup';
 import { Toaster } from '@/components/ui/sonner';
 
 const Index = () => {
-  const [mapboxToken, setMapboxToken] = useState<string>('');
-  
-  // Try to load token from local storage on initial render
-  useEffect(() => {
-    const savedToken = localStorage.getItem('mapbox-token');
-    if (savedToken) {
-      setMapboxToken(savedToken);
-    }
-  }, []);
-
-  // Save token to local storage when it changes
-  const handleTokenSubmit = (token: string) => {
-    localStorage.setItem('mapbox-token', token);
-    setMapboxToken(token);
-  };
+  // Use the provided Mapbox token
+  const mapboxToken = 'pk.eyJ1IjoidGdlcnRpbiIsImEiOiJYTW5sTVhRIn0.X4B5APkxkWVaiSg3KqMCaQ';
 
   return (
     <>
       <Toaster />
       <div className="h-screen w-screen overflow-hidden bg-background">
-        {mapboxToken ? (
-          <HexMap mapboxToken={mapboxToken} />
-        ) : (
-          <MapTokenSetup onTokenSubmit={handleTokenSubmit} />
-        )}
+        <HexMap mapboxToken={mapboxToken} />
       </div>
     </>
   );
