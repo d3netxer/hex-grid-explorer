@@ -153,12 +153,14 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     const config = metricConfigs[selectedMetric];
     const [min, max] = findMinMaxValues(selectedMetric);
     
-    // Create a color expression for the fill color
-    const colorExpression = [
+    // Create a color expression for the fill color - FIX HERE
+    // Convert the array of color steps to a proper Mapbox expression format
+    const colorStops = config.colorScale.flatMap(stop => [stop.value, stop.color]);
+    const colorExpression: mapboxgl.Expression = [
       'interpolate',
       ['linear'],
       ['get', selectedMetric],
-      ...config.colorScale.flatMap(stop => [stop.value, stop.color])
+      ...colorStops
     ];
 
     // Update fill color based on selected metric
