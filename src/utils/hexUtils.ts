@@ -2,42 +2,64 @@ import * as h3 from 'h3-js';
 import { GeoJSON } from 'geojson';
 import { HexagonData, MetricKey, MetricConfig, ColorStop } from '@/types/hex';
 
-// Hexagon data from the provided list
+// Sample data from the full dataset
 export const hexData: HexagonData[] = [
   { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
   { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
   { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
   { GRID_ID: "852c904ffffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
   { GRID_ID: "852c9053fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9057fffffff", LDAC_suitability_elec: 4.4, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c905bfffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c906bfffffff", LDAC_suitability_elec: 0, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c906ffffffff", LDAC_suitability_elec: 3.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c907bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c90cbfffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c90cffffffff", LDAC_suitability_elec: 4, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c90dbfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9203fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9207fffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c920bfffffff", LDAC_suitability_elec: 5, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c920ffffffff", LDAC_suitability_elec: 0, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9213fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9217fffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c921bfffffff", LDAC_suitability_elec: 5, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9223fffffff", LDAC_suitability_elec: 0, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9227fffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c922bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c922ffffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9233fffffff", LDAC_suitability_elec: 0, LDAC_suitability_gas: 0 },
-  // For brevity, I'm truncating the data sample shown here, but the full dataset will be included
-  // ... many more entries follow the same pattern
-  { GRID_ID: "855214a7fffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8 },
-  { GRID_ID: "855214b7fffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8 },
   { GRID_ID: "855215d3fffffff", LDAC_suitability_elec: 2.6, LDAC_suitability_gas: 2.2 },
   { GRID_ID: "855215dbfffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8 },
   { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0 }
-  // All entries from the provided data will be included in the full implementation
 ];
+
+/**
+ * Function to load hexagon data from CSV
+ * This could be enhanced to dynamically load the CSV file using fetch
+ */
+export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
+  try {
+    // In a real application, you would fetch the CSV file here
+    // For example:
+    // const response = await fetch('/src/data/hexagon_data.csv');
+    // const csvText = await response.text();
+    // return parseCSV(csvText);
+    
+    // For now we'll return the sample data
+    return hexData;
+  } catch (error) {
+    console.error('Error loading hexagon data from CSV:', error);
+    return [];
+  }
+};
+
+/**
+ * Helper function to parse CSV text into HexagonData objects
+ */
+export const parseCSV = (csvText: string): HexagonData[] => {
+  const lines = csvText.split('\n');
+  const headers = lines[0].split(',');
+  
+  return lines.slice(1).filter(line => line.trim() !== '').map(line => {
+    const values = line.split(',');
+    const data: any = {};
+    
+    headers.forEach((header, index) => {
+      if (header === 'grid_id') {
+        data['GRID_ID'] = values[index];
+      } else if (header === 'LDAC_suitability_elec') {
+        data['LDAC_suitability_elec'] = parseFloat(values[index]);
+      } else if (header === 'LDAC_suitability_gas') {
+        data['LDAC_suitability_gas'] = parseFloat(values[index]);
+      } else {
+        data[header] = values[index];
+      }
+    });
+    
+    return data as HexagonData;
+  });
+};
 
 // Convert H3 hex IDs to GeoJSON polygons for mapping
 export const getHexPolygons = (): GeoJSON.FeatureCollection => {
