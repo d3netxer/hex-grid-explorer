@@ -31,7 +31,7 @@ interface HexMapProps {
 const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey>('ZONE_CODE');
+  const [selectedMetric, setSelectedMetric] = useState<MetricKey>('LDAC_suitability_elec');
   const [selectedHexagon, setSelectedHexagon] = useState<HexagonData | null>(null);
   const [filterValue, setFilterValue] = useState<[number, number] | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -121,7 +121,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
             .setLngLat(e.lngLat)
             .setHTML(`
               <div>
-                <h3 class="text-lg font-bold">Hexagon ${feature.properties.ZONE_CODE}</h3>
+                <h3 class="text-lg font-bold">Hexagon Data</h3>
                 <p class="text-sm">${feature.properties.GRID_ID}</p>
                 <div class="mt-2">
                   <strong>${metricConfigs[selectedMetric].name}:</strong> 
@@ -153,8 +153,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     const config = metricConfigs[selectedMetric];
     const [min, max] = findMinMaxValues(selectedMetric);
     
-    // Create a color expression for the fill color - FIX HERE
-    // Convert the array of color steps to a proper Mapbox expression format
+    // Create a color expression for the fill color
     const colorStops = config.colorScale.flatMap(stop => [stop.value, stop.color]);
     const colorExpression: mapboxgl.Expression = [
       'interpolate',
@@ -216,7 +215,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     return {
       min, 
       max,
-      step: Math.max(1, Math.round((max - min) / 100)) // Reasonable step size
+      step: Math.max(0.1, Math.round((max - min) / 100 * 10) / 10) // Reasonable step size with decimal precision
     };
   };
 
@@ -233,7 +232,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-4">
               <Map className="h-5 w-5" />
-              <h2 className="text-lg font-bold">Hexagon Explorer</h2>
+              <h2 className="text-lg font-bold">LDAC Suitability Explorer</h2>
             </div>
 
             <div className="space-y-4">
@@ -287,11 +286,15 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
               {selectedHexagon && (
                 <div className="mt-4 p-3 bg-secondary/50 rounded-md">
                   <h3 className="text-sm font-bold mb-1">Selected Hexagon</h3>
-                  <p className="text-xs">Zone: {selectedHexagon.ZONE_CODE}</p>
                   <p className="text-xs">ID: {selectedHexagon.GRID_ID}</p>
-                  <p className="text-xs mt-1">
-                    <strong>{metricConfigs[selectedMetric].name}:</strong> {metricConfigs[selectedMetric].format(selectedHexagon[selectedMetric])}
-                  </p>
+                  <div className="mt-1">
+                    <p className="text-xs">
+                      <strong>Electric Suitability:</strong> {selectedHexagon.LDAC_suitability_elec}
+                    </p>
+                    <p className="text-xs">
+                      <strong>Gas Suitability:</strong> {selectedHexagon.LDAC_suitability_gas}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
