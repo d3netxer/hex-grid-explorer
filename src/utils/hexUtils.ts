@@ -1,9 +1,10 @@
+
 import * as h3 from 'h3-js';
 import { GeoJSON } from 'geojson';
 import { HexagonData, MetricKey, MetricConfig, ColorStop } from '@/types/hex';
 
-// Sample data from the full dataset
-export const hexData: HexagonData[] = [
+// Sample data as a fallback
+export const sampleHexData: HexagonData[] = [
   { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
   { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
   { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
@@ -14,23 +15,32 @@ export const hexData: HexagonData[] = [
   { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0 }
 ];
 
+// This will store loaded data
+export let hexData: HexagonData[] = [];
+
 /**
  * Function to load hexagon data from CSV
- * This could be enhanced to dynamically load the CSV file using fetch
  */
 export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
   try {
-    // In a real application, you would fetch the CSV file here
-    // For example:
-    // const response = await fetch('/src/data/hexagon_data.csv');
-    // const csvText = await response.text();
-    // return parseCSV(csvText);
+    // Fetch the CSV file
+    const response = await fetch('/src/data/hexagon_data.csv');
     
-    // For now we'll return the sample data
-    return hexData;
+    if (!response.ok) {
+      console.error(`Failed to load CSV: ${response.status} ${response.statusText}`);
+      return sampleHexData;
+    }
+    
+    const csvText = await response.text();
+    const parsedData = parseCSV(csvText);
+    
+    // Store the data in the module-level variable
+    hexData = parsedData;
+    return parsedData;
   } catch (error) {
     console.error('Error loading hexagon data from CSV:', error);
-    return [];
+    // Return sample data as fallback
+    return sampleHexData;
   }
 };
 
@@ -63,7 +73,10 @@ export const parseCSV = (csvText: string): HexagonData[] => {
 
 // Convert H3 hex IDs to GeoJSON polygons for mapping
 export const getHexPolygons = (): GeoJSON.FeatureCollection => {
-  const features = hexData.map(hex => {
+  // If hexData is empty, we might not have loaded it yet
+  const dataToUse = hexData.length > 0 ? hexData : sampleHexData;
+  
+  const features = dataToUse.map(hex => {
     const center = h3.cellToLatLng(hex.GRID_ID);
     const boundary = h3.cellToBoundary(hex.GRID_ID);
     
@@ -141,9 +154,12 @@ const rgbToHex = (r: number, g: number, b: number) => {
 
 // Find min/max values for a specific metric in the dataset
 export const findMinMaxValues = (metric: MetricKey): [number, number] => {
-  if (hexData.length === 0) return [0, 1];
+  // Use the loaded data if available, otherwise use sample data
+  const dataToUse = hexData.length > 0 ? hexData : sampleHexData;
   
-  const values = hexData.map(hex => hex[metric]);
+  if (dataToUse.length === 0) return [0, 1];
+  
+  const values = dataToUse.map(hex => hex[metric]);
   const min = Math.min(...values);
   const max = Math.max(...values);
   

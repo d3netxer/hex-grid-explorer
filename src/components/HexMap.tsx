@@ -17,12 +17,13 @@ import {
   getColorForValue,
   metricConfigs,
   findMinMaxValues,
-  hexData
+  loadHexagonDataFromCSV
 } from '@/utils/hexUtils';
 import { MetricKey, HexagonData } from '@/types/hex';
 import { Map, Navigation } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from "sonner";
 
 interface HexMapProps {
   mapboxToken: string;
@@ -35,9 +36,30 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
   const [selectedHexagon, setSelectedHexagon] = useState<HexagonData | null>(null);
   const [filterValue, setFilterValue] = useState<[number, number] | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
 
   // Set Mapbox access token
   mapboxgl.accessToken = mapboxToken;
+
+  // Load CSV data
+  useEffect(() => {
+    const fetchData = async () => {
+      setDataLoading(true);
+      try {
+        await loadHexagonDataFromCSV();
+        setDataLoaded(true);
+        toast.success("Hexagon data loaded successfully");
+      } catch (error) {
+        console.error("Failed to load hexagon data:", error);
+        toast.error("Error loading hexagon data. Using sample data instead.");
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -144,7 +166,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     }
 
     updateHexagonColors();
-  }, [mapLoaded, selectedMetric]);
+  }, [mapLoaded, selectedMetric, dataLoaded]);
 
   // Update hexagon colors when metric or filter changes
   const updateHexagonColors = () => {
@@ -225,6 +247,16 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     <div className="relative h-full w-full">
       {/* Map container */}
       <div ref={mapContainer} className="map-container h-full" style={{position: 'absolute', top: 0, bottom: 0, width: '100%'}} />
+
+      {/* Loading indicator */}
+      {dataLoading && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background/80 p-4 rounded-lg shadow-lg z-50">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+            <span>Loading hexagon data...</span>
+          </div>
+        </div>
+      )}
 
       {/* Controls panel */}
       <div className="absolute top-4 left-4 z-10 w-72 bg-opacity-90 animate-fade-in">
