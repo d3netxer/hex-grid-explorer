@@ -46,6 +46,13 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
       try {
         const data = await loadHexagonDataFromCSV();
         console.log("Data loaded in HexMap component:", data.length, "records");
+        if (data.length > 0) {
+          console.log("Sample data for metrics:", {
+            elec: data[0].LDAC_suitability_elec,
+            gas: data[0].LDAC_suitability_gas,
+            combined: data[0].LDAC_combined
+          });
+        }
         setDataLoaded(true);
         toast.success(`Loaded ${data.length} hexagon data records`);
       } catch (error) {
@@ -123,6 +130,12 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     console.log("Adding hexagon data to map");
     const hexPolygons = getHexPolygons();
     console.log("GeoJSON created with", hexPolygons.features.length, "features");
+    
+    // Debug selected metric values
+    console.log(`Current metric: ${selectedMetric}`);
+    if (hexPolygons.features.length > 0) {
+      console.log("Sample hexagon properties:", hexPolygons.features[0].properties);
+    }
     
     try {
       // Add source if it doesn't exist
@@ -224,6 +237,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
     try {
       const config = metricConfigs[selectedMetric];
+      console.log(`Updating colors for ${selectedMetric} with config:`, config);
       
       // Create a color expression for the fill color based on the new class ranges
       const colorStops: any[] = [];
