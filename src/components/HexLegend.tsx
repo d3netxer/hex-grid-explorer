@@ -17,15 +17,20 @@ const HexLegend: React.FC<HexLegendProps> = ({ metric, min, max }) => {
     <Card className="bg-card/90 backdrop-blur-sm border-border/50">
       <CardContent className="p-3">
         <h3 className="text-sm font-medium mb-2">{config.name}</h3>
-        <div className="flex items-center gap-1">
-          <div 
-            className="h-4 w-24 rounded" 
-            style={{
-              background: `linear-gradient(to right, ${config.colorScale[0].color}, ${config.colorScale[1].color})`
-            }}
-          />
-          <span className="text-xs ml-1">{min}</span>
-          <span className="text-xs flex-1 text-right">{max}</span>
+        <div className="flex flex-col gap-1">
+          {config.colorScale.map((stop, index) => (
+            index > 0 && (
+              <div key={index} className="flex items-center gap-2">
+                <div 
+                  className="h-4 w-4 rounded" 
+                  style={{ backgroundColor: stop.color }}
+                />
+                <span className="text-xs">
+                  {index === 1 ? '≤ 1' : index === config.colorScale.length - 1 ? '≤ 5' : `≤ ${stop.value}`}
+                </span>
+              </div>
+            )
+          ))}
         </div>
         <p className="text-xs text-muted-foreground mt-1">{config.unit}</p>
       </CardContent>

@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -13,14 +14,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { 
   getHexPolygons, 
-  getColorForValue,
   metricConfigs,
   findMinMaxValues,
   loadHexagonDataFromCSV
 } from '@/utils/hexUtils';
 import { MetricKey, HexagonData } from '@/types/hex';
 import { Map, Navigation } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
 
@@ -226,10 +225,15 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
     try {
       const config = metricConfigs[selectedMetric];
-      const [min, max] = findMinMaxValues(selectedMetric);
       
-      // Create a color expression for the fill color
-      const colorStops = config.colorScale.flatMap(stop => [stop.value, stop.color]);
+      // Create a color expression for the fill color based on the new class ranges
+      const colorStops: any[] = [];
+      
+      // Add each color stop from the config
+      config.colorScale.forEach(stop => {
+        colorStops.push(stop.value, stop.color);
+      });
+      
       const colorExpression: mapboxgl.Expression = [
         'interpolate',
         ['linear'],
@@ -411,19 +415,19 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
               </div>
 
               <div>
-                <Label>Filter Range {filterValue ? `(${filterValue[0]} - ${filterValue[1]})` : ''}</Label>
+                <Label>Filter Range {filterValue ? `(${filterValue[0].toFixed(1)} - ${filterValue[1].toFixed(1)})` : ''}</Label>
                 <Slider
-                  defaultValue={[min, max]}
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={filterValue || [min, max]}
+                  defaultValue={[0, 5]}
+                  min={0}
+                  max={5}
+                  step={0.1}
+                  value={filterValue || [0, 5]}
                   onValueChange={handleFilterChange}
                   className="mt-2"
                 />
                 <div className="flex justify-between mt-1">
-                  <span className="text-xs text-muted-foreground">{min}</span>
-                  <span className="text-xs text-muted-foreground">{max}</span>
+                  <span className="text-xs text-muted-foreground">0</span>
+                  <span className="text-xs text-muted-foreground">5</span>
                 </div>
                 <Button 
                   variant="outline" 
@@ -441,16 +445,13 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
                   <p className="text-xs">ID: {selectedHexagon.GRID_ID}</p>
                   <div className="mt-1">
                     <p className="text-xs">
-                      <strong>Electric Suitability:</strong> {selectedHexagon.LDAC_suitability_elec}
+                      <strong>Electric Suitability:</strong> {selectedHexagon.LDAC_suitability_elec.toFixed(1)}
                     </p>
                     <p className="text-xs">
-                      <strong>Gas Suitability:</strong> {selectedHexagon.LDAC_suitability_gas}
+                      <strong>Gas Suitability:</strong> {selectedHexagon.LDAC_suitability_gas.toFixed(1)}
                     </p>
                     <p className="text-xs">
-                      <strong>Combined Suitability:</strong> {selectedHexagon.LDAC_combined}
-                    </p>
-                    <p className="text-xs">
-                      <strong>Heating Demand:</strong> {selectedHexagon.heating_demand} kWh/m²
+                      <strong>Combined Suitability:</strong> {selectedHexagon.LDAC_combined.toFixed(1)}
                     </p>
                   </div>
                 </div>
@@ -465,17 +466,22 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
         <Card className="bg-card/90 backdrop-blur-sm border-border/50">
           <CardContent className="p-3">
             <h3 className="text-sm font-medium mb-2">{metricConfigs[selectedMetric].name}</h3>
-            <div className="flex items-center gap-1">
-              <div 
-                className="h-4 w-24 rounded" 
-                style={{
-                  background: `linear-gradient(to right, ${metricConfigs[selectedMetric].colorScale[0].color}, ${metricConfigs[selectedMetric].colorScale[1].color})`
-                }}
-              />
-              <span className="text-xs ml-1 w-8">{min}</span>
-              <span className="text-xs flex-1 text-right w-8">{max}</span>
+            <div className="flex flex-col gap-1">
+              {metricConfigs[selectedMetric].colorScale.map((stop, index) => (
+                index > 0 && (
+                  <div key={index} className="flex items-center gap-2">
+                    <div 
+                      className="h-4 w-4 rounded" 
+                      style={{ backgroundColor: stop.color }}
+                    />
+                    <span className="text-xs">
+                      {index === 1 ? '≤ 1' : index === metricConfigs[selectedMetric].colorScale.length - 1 ? '≤ 5' : `≤ ${stop.value}`}
+                    </span>
+                  </div>
+                )
+              ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{metricConfigs[selectedMetric].unit}</p>
+            <p className="text-xs text-muted-foreground mt-2">{metricConfigs[selectedMetric].unit}</p>
           </CardContent>
         </Card>
       </div>

@@ -4,14 +4,14 @@ import { HexagonData, MetricKey, MetricConfig, ColorStop } from '@/types/hex';
 
 // Sample data as a fallback
 export const sampleHexData: HexagonData[] = [
-  { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 120 },
-  { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 135 },
-  { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0, LDAC_combined: 4.2, heating_demand: 145 },
-  { GRID_ID: "852c904ffffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 160 },
-  { GRID_ID: "852c9053fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 110 },
-  { GRID_ID: "855215d3fffffff", LDAC_suitability_elec: 2.6, LDAC_suitability_gas: 2.2, LDAC_combined: 4.8, heating_demand: 180 },
-  { GRID_ID: "855215dbfffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8, LDAC_combined: 4.0, heating_demand: 190 },
-  { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0, LDAC_combined: 2.0, heating_demand: 175 }
+  { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6 },
+  { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6 },
+  { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0, LDAC_combined: 4.2 },
+  { GRID_ID: "852c904ffffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6 },
+  { GRID_ID: "852c9053fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6 },
+  { GRID_ID: "855215d3fffffff", LDAC_suitability_elec: 2.6, LDAC_suitability_gas: 2.2, LDAC_combined: 4.8 },
+  { GRID_ID: "855215dbfffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8, LDAC_combined: 4.0 },
+  { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0, LDAC_combined: 2.0 }
 ];
 
 // This will store loaded data
@@ -97,10 +97,6 @@ export const parseCSV = (csvText: string): HexagonData[] => {
         data['LDAC_suitability_gas'] = parseFloat(values[i]) || 0;
       } else if (lowerHeader === 'ldac_combined') {
         data['LDAC_combined'] = parseFloat(values[i]) || 0;
-      } else if (lowerHeader === 'heating_demand') {
-        data['heating_demand'] = parseFloat(values[i]) || 0;
-      } else {
-        data[header] = values[i];
       }
     });
     
@@ -111,7 +107,6 @@ export const parseCSV = (csvText: string): HexagonData[] => {
     }
     if (!data['LDAC_suitability_elec'] && data['LDAC_suitability_elec'] !== 0) data['LDAC_suitability_elec'] = 0;
     if (!data['LDAC_suitability_gas'] && data['LDAC_suitability_gas'] !== 0) data['LDAC_suitability_gas'] = 0;
-    if (!data['heating_demand'] && data['heating_demand'] !== 0) data['heating_demand'] = 0;
     
     // Calculate LDAC_combined if it's not in the CSV
     if (!data['LDAC_combined'] && data['LDAC_combined'] !== 0) {
@@ -225,7 +220,7 @@ export const findMinMaxValues = (metric: MetricKey): [number, number] => {
   // Use the loaded data if available, otherwise use sample data
   const dataToUse = hexData.length > 0 ? hexData : sampleHexData;
   
-  if (dataToUse.length === 0) return [0, 1];
+  if (dataToUse.length === 0) return [0, 5];
   
   const values = dataToUse.map(hex => hex[metric]);
   const min = Math.min(...values);
@@ -234,7 +229,7 @@ export const findMinMaxValues = (metric: MetricKey): [number, number] => {
   return [min, max];
 };
 
-// Update the metric configurations to include the new combined metric
+// Update the metric configurations with the new color scales and remove heating_demand
 export const metricConfigs: Record<MetricKey, MetricConfig> = {
   LDAC_suitability_elec: {
     name: 'LDAC Suitability (Electric)',
@@ -242,10 +237,14 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
     description: 'Suitability score for electric liquid desiccant air conditioning',
     unit: 'score',
     colorScale: [
-      { value: 0, color: '#f5f5f5' },
-      { value: 5, color: '#7E69AB' }
+      { value: 0, color: 'transparent' },
+      { value: 1, color: '#edf8e9' },
+      { value: 2, color: '#bae4b3' },
+      { value: 3, color: '#74c476' },
+      { value: 4, color: '#31a354' },
+      { value: 5, color: '#006d2c' }
     ],
-    format: (value) => value.toString()
+    format: (value) => value.toFixed(1)
   },
   LDAC_suitability_gas: {
     name: 'LDAC Suitability (Gas)',
@@ -253,10 +252,14 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
     description: 'Suitability score for gas-powered liquid desiccant air conditioning',
     unit: 'score',
     colorScale: [
-      { value: 0, color: '#f5f5f5' },
-      { value: 2.2, color: '#9b87f5' }
+      { value: 0, color: 'transparent' },
+      { value: 1, color: '#edf8e9' },
+      { value: 2, color: '#bae4b3' },
+      { value: 3, color: '#74c476' },
+      { value: 4, color: '#31a354' },
+      { value: 5, color: '#006d2c' }
     ],
-    format: (value) => value.toString()
+    format: (value) => value.toFixed(1)
   },
   LDAC_combined: {
     name: 'LDAC Combined Suitability',
@@ -264,20 +267,13 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
     description: 'Combined suitability score of electric and gas LDAC systems',
     unit: 'score',
     colorScale: [
-      { value: 0, color: '#f5f5f5' },
-      { value: 7, color: '#8B5CF6' }
+      { value: 0, color: 'transparent' },
+      { value: 1, color: '#edf8e9' },
+      { value: 2, color: '#bae4b3' },
+      { value: 3, color: '#74c476' },
+      { value: 4, color: '#31a354' },
+      { value: 5, color: '#006d2c' }
     ],
-    format: (value) => value.toString()
-  },
-  heating_demand: {
-    name: 'Heating Demand',
-    key: 'heating_demand',
-    description: 'Annual heating demand intensity for the area',
-    unit: 'kWh/m²',
-    colorScale: [
-      { value: 100, color: '#f5f5f5' },
-      { value: 200, color: '#F97316' }
-    ],
-    format: (value) => `${value} kWh/m²`
+    format: (value) => value.toFixed(1)
   }
 };
