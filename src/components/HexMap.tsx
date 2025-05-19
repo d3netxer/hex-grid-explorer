@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -47,9 +46,10 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     const fetchData = async () => {
       setDataLoading(true);
       try {
-        await loadHexagonDataFromCSV();
+        const data = await loadHexagonDataFromCSV();
+        console.log("Data loaded in HexMap component:", data.length, "records");
         setDataLoaded(true);
-        toast.success("Hexagon data loaded successfully");
+        toast.success(`Loaded ${data.length} hexagon data records`);
       } catch (error) {
         console.error("Failed to load hexagon data:", error);
         toast.error("Error loading hexagon data. Using sample data instead.");
@@ -64,13 +64,15 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    // Initialize the map
+    console.log("Initializing map");
+    
+    // Initialize the map with coordinates optimized for hexagon data
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/dark-v11',
-      center: [45, 25], // Estimate center from data
-      zoom: 8,
-      pitch: 30,
+      center: [-74.5, 40], // Adjusted to view sample data
+      zoom: 7, // Increased zoom level
+      pitch: 0, // Flat view for better hexagon visibility
     });
 
     // Add navigation controls
@@ -83,34 +85,46 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
     // Wait for map to load
     map.current.on('load', () => {
+      console.log("Map loaded");
       setMapLoaded(true);
     });
 
     return () => {
-      map.current?.remove();
-      map.current = null;
+      if (map.current) {
+        console.log("Removing map");
+        map.current.remove();
+        map.current = null;
+      }
     };
   }, []);
 
   // Add hexagon data to the map
   useEffect(() => {
-    if (!mapLoaded || !map.current) return;
+    if (!mapLoaded || !map.current) {
+      console.log("Map not ready yet, waiting...");
+      return;
+    }
 
+    console.log("Adding hexagon data to map");
     const hexPolygons = getHexPolygons();
+    console.log("GeoJSON created with", hexPolygons.features.length, "features");
     
     // Add source if it doesn't exist
     if (!map.current.getSource('hexagons')) {
+      console.log("Adding new hexagon source to map");
       map.current.addSource('hexagons', {
         type: 'geojson',
         data: hexPolygons
       });
     } else {
       // Otherwise update the existing source
+      console.log("Updating existing hexagon source");
       (map.current.getSource('hexagons') as mapboxgl.GeoJSONSource).setData(hexPolygons);
     }
 
     // Add hexagon layer if it doesn't exist
     if (!map.current.getLayer('hexagon-fill')) {
+      console.log("Adding hexagon layers");
       map.current.addLayer({
         id: 'hexagon-fill',
         type: 'fill',

@@ -23,23 +23,30 @@ export let hexData: HexagonData[] = [];
  */
 export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
   try {
+    console.log("Attempting to load CSV from /data/hexagon_data.csv");
     // Fetch the CSV file - update path to use public folder
     const response = await fetch('/data/hexagon_data.csv');
     
     if (!response.ok) {
       console.error(`Failed to load CSV: ${response.status} ${response.statusText}`);
+      console.log("Using sample data as fallback");
+      hexData = sampleHexData;
       return sampleHexData;
     }
     
     const csvText = await response.text();
+    console.log("CSV loaded successfully, parsing data...");
     const parsedData = parseCSV(csvText);
     
     // Store the data in the module-level variable
     hexData = parsedData;
+    console.log(`Loaded ${parsedData.length} hexagon records`);
     return parsedData;
   } catch (error) {
     console.error('Error loading hexagon data from CSV:', error);
     // Return sample data as fallback
+    console.log("Using sample data as fallback due to error");
+    hexData = sampleHexData;
     return sampleHexData;
   }
 };
@@ -78,25 +85,33 @@ export const getHexPolygons = (): GeoJSON.FeatureCollection => {
   // If hexData is empty, we might not have loaded it yet
   const dataToUse = hexData.length > 0 ? hexData : sampleHexData;
   
+  console.log(`Creating GeoJSON from ${dataToUse.length} hexagons`);
+  
   const features = dataToUse.map(hex => {
-    const center = h3.cellToLatLng(hex.GRID_ID);
-    const boundary = h3.cellToBoundary(hex.GRID_ID);
-    
-    const feature: GeoJSON.Feature = {
-      type: 'Feature',
-      properties: { ...hex },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [boundary.map(coord => [coord[1], coord[0]])]
-      }
-    };
-    
-    return feature;
-  });
+    try {
+      const boundary = h3.cellToBoundary(hex.GRID_ID);
+      
+      const feature: GeoJSON.Feature = {
+        type: 'Feature',
+        properties: { ...hex },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [boundary.map(coord => [coord[1], coord[0]])]
+        }
+      };
+      
+      return feature;
+    } catch (error) {
+      console.error(`Error creating polygon for hex ${hex.GRID_ID}:`, error);
+      return null;
+    }
+  }).filter(feature => feature !== null);
 
+  console.log(`Created ${features.length} valid GeoJSON features`);
+  
   return {
     type: 'FeatureCollection',
-    features
+    features: features as GeoJSON.Feature[]
   };
 };
 
