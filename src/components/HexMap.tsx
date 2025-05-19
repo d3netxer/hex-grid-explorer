@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -66,13 +67,13 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
     console.log("Initializing map");
     
-    // Initialize the map with coordinates for New York area (adjusted for sample data)
+    // Initialize the map with default coordinates (will be updated when data loads)
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-74.0, 40.7], // New York City coordinates
-      zoom: 9, // Higher zoom level
-      pitch: 0, // Flat view for better hexagon visibility
+      center: [-74.0, 40.7], // Default coordinates (will be updated)
+      zoom: 9,
+      pitch: 0,
     });
 
     // Add navigation controls
@@ -109,11 +110,19 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
       console.log("Map style not fully loaded, waiting...");
       // Try again in a short while
       const timer = setTimeout(() => {
-        updateHexagonColors();
+        updateHexagonLayer();
       }, 500);
       return () => clearTimeout(timer);
     }
 
+    updateHexagonLayer();
+    
+  }, [mapLoaded, selectedMetric, dataLoaded]);
+
+  // Function to update the hexagon layer
+  const updateHexagonLayer = () => {
+    if (!map.current || !mapLoaded) return;
+    
     console.log("Adding hexagon data to map");
     const hexPolygons = getHexPolygons();
     console.log("GeoJSON created with", hexPolygons.features.length, "features");
@@ -190,17 +199,22 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
       }
 
       updateHexagonColors();
+      
+      // Automatically fit to hexagons after loading
+      if (hexPolygons.features.length > 0) {
+        fitMapToHexagons();
+      }
     } catch (error) {
       console.error("Error adding hexagon data to map:", error);
       toast.error("Error rendering hexagons on map");
       
       // Try again after a delay
       const timer = setTimeout(() => {
-        updateHexagonColors();
+        updateHexagonLayer();
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [mapLoaded, selectedMetric, dataLoaded]);
+  };
 
   // Update hexagon colors when metric or filter changes
   const updateHexagonColors = () => {
@@ -294,25 +308,41 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     
     try {
       const hexPolygons = getHexPolygons();
-      if (hexPolygons.features.length === 0) return;
+      if (hexPolygons.features.length === 0) {
+        console.log("No hexagon features to fit map to");
+        return;
+      }
+      
+      console.log("Fitting map to hexagons...");
       
       // Calculate bounds from all hexagon features
-      let bounds = new mapboxgl.LngLatBounds();
+      const bounds = new mapboxgl.LngLatBounds();
       
       hexPolygons.features.forEach(feature => {
-        const coords = feature.geometry.coordinates[0];
-        coords.forEach((coord: [number, number]) => {
-          bounds.extend(coord as mapboxgl.LngLatLike);
+        // Type check to ensure we're using Polygon type features
+        if (feature.geometry.type === 'Polygon') {
+          // Now TypeScript knows this is a Polygon geometry
+          const polygonCoords = feature.geometry.coordinates;
+          if (polygonCoords && polygonCoords[0]) {
+            polygonCoords[0].forEach((coord) => {
+              bounds.extend(coord as mapboxgl.LngLatLike);
+            });
+          }
+        }
+      });
+      
+      if (!bounds.isEmpty()) {
+        // Fit map to these bounds with some padding
+        map.current.fitBounds(bounds, {
+          padding: 50,
+          maxZoom: 12,
+          duration: 1000
         });
-      });
-      
-      // Fit map to these bounds with some padding
-      map.current.fitBounds(bounds, {
-        padding: 50,
-        maxZoom: 12
-      });
-      
-      console.log("Map fitted to hexagon bounds");
+        
+        console.log("Map fitted to hexagon bounds");
+      } else {
+        console.log("Could not calculate bounds - no valid coordinates");
+      }
     } catch (error) {
       console.error("Error fitting map to hexagons:", error);
     }

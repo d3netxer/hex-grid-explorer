@@ -24,7 +24,7 @@ export let hexData: HexagonData[] = [];
 export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
   try {
     console.log("Attempting to load CSV from /data/hexagon_data.csv");
-    // Fetch the CSV file - update path to use public folder
+    // Fetch the CSV file from public folder
     const response = await fetch('/data/hexagon_data.csv');
     
     if (!response.ok) {
@@ -35,12 +35,18 @@ export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
     }
     
     const csvText = await response.text();
-    console.log("CSV loaded successfully, parsing data...");
+    console.log("CSV loaded successfully, first 100 chars:", csvText.substring(0, 100));
     const parsedData = parseCSV(csvText);
     
     // Store the data in the module-level variable
     hexData = parsedData;
     console.log(`Loaded ${parsedData.length} hexagon records`);
+    
+    // Log the first record to verify structure
+    if (parsedData.length > 0) {
+      console.log("Sample record:", JSON.stringify(parsedData[0]));
+    }
+    
     return parsedData;
   } catch (error) {
     console.error('Error loading hexagon data from CSV:', error);
@@ -56,30 +62,49 @@ export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
  */
 export const parseCSV = (csvText: string): HexagonData[] => {
   const lines = csvText.split('\n');
-  const headers = lines[0].split(',');
+  if (lines.length < 2) {
+    console.error("CSV file appears to be empty or invalid");
+    return sampleHexData;
+  }
   
-  return lines.slice(1).filter(line => line.trim() !== '').map(line => {
-    const values = line.split(',');
+  const headers = lines[0].split(',').map(header => header.trim());
+  console.log("CSV headers:", headers);
+  
+  const dataRows = lines.slice(1).filter(line => line.trim() !== '');
+  console.log(`Found ${dataRows.length} data rows in CSV`);
+  
+  return dataRows.map((line, index) => {
+    const values = line.split(',').map(value => value.trim());
     const data: any = {};
     
-    headers.forEach((header, index) => {
-      if (header === 'grid_id' || header === 'GRID_ID') {
-        data['GRID_ID'] = values[index];
-      } else if (header === 'LDAC_suitability_elec' || header === 'ldac_suitability_elec') {
-        data['LDAC_suitability_elec'] = parseFloat(values[index]) || 0;
-      } else if (header === 'LDAC_suitability_gas' || header === 'ldac_suitability_gas') {
-        data['LDAC_suitability_gas'] = parseFloat(values[index]) || 0;
-      } else if (header === 'heating_demand') {
-        data['heating_demand'] = parseFloat(values[index]) || 0;
+    headers.forEach((header, i) => {
+      if (i >= values.length) {
+        console.warn(`Missing value for header ${header} in row ${index + 2}`);
+        return;
+      }
+      
+      const lowerHeader = header.toLowerCase();
+      if (lowerHeader === 'grid_id') {
+        data['GRID_ID'] = values[i];
+      } else if (lowerHeader === 'ldac_suitability_elec') {
+        data['LDAC_suitability_elec'] = parseFloat(values[i]) || 0;
+      } else if (lowerHeader === 'ldac_suitability_gas') {
+        data['LDAC_suitability_gas'] = parseFloat(values[i]) || 0;
+      } else if (lowerHeader === 'heating_demand') {
+        data['heating_demand'] = parseFloat(values[i]) || 0;
       } else {
-        data[header] = values[index];
+        data[header] = values[i];
       }
     });
     
     // Ensure all required fields exist
-    if (!data['LDAC_suitability_elec']) data['LDAC_suitability_elec'] = 0;
-    if (!data['LDAC_suitability_gas']) data['LDAC_suitability_gas'] = 0;
-    if (!data['heating_demand']) data['heating_demand'] = 0;
+    if (!data['GRID_ID']) {
+      console.warn(`Missing GRID_ID in row ${index + 2}`);
+      data['GRID_ID'] = `unknown-${index}`;
+    }
+    if (!data['LDAC_suitability_elec'] && data['LDAC_suitability_elec'] !== 0) data['LDAC_suitability_elec'] = 0;
+    if (!data['LDAC_suitability_gas'] && data['LDAC_suitability_gas'] !== 0) data['LDAC_suitability_gas'] = 0;
+    if (!data['heating_demand'] && data['heating_demand'] !== 0) data['heating_demand'] = 0;
     
     return data as HexagonData;
   });
