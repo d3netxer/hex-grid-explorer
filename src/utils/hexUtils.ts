@@ -1,3 +1,4 @@
+
 import * as h3 from 'h3-js';
 import { GeoJSON } from 'geojson';
 import { HexagonData, MetricKey, MetricConfig, ColorStop } from '@/types/hex';
@@ -37,22 +38,16 @@ export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
     console.log("CSV loaded successfully, first 100 chars:", csvText.substring(0, 100));
     const parsedData = parseCSV(csvText);
     
-    // Calculate the combined LDAC values
-    const dataWithCombined = parsedData.map(hex => ({
-      ...hex,
-      LDAC_combined: Number((hex.LDAC_suitability_elec + hex.LDAC_suitability_gas).toFixed(1))
-    }));
-    
     // Store the data in the module-level variable
-    hexData = dataWithCombined;
-    console.log(`Loaded ${dataWithCombined.length} hexagon records with combined LDAC values`);
+    hexData = parsedData;
+    console.log(`Loaded ${parsedData.length} hexagon records with combined LDAC values`);
     
     // Log the first record to verify structure
-    if (dataWithCombined.length > 0) {
-      console.log("Sample record:", JSON.stringify(dataWithCombined[0]));
+    if (parsedData.length > 0) {
+      console.log("Sample record:", JSON.stringify(parsedData[0]));
     }
     
-    return dataWithCombined;
+    return parsedData;
   } catch (error) {
     console.error('Error loading hexagon data from CSV:', error);
     // Return sample data as fallback
@@ -75,6 +70,22 @@ export const parseCSV = (csvText: string): HexagonData[] => {
   const headers = lines[0].split(',').map(header => header.trim());
   console.log("CSV headers:", headers);
   
+  // Find column indices for our data
+  const gridIdIndex = headers.findIndex(h => h.toLowerCase() === 'grid_id');
+  const elecIndex = headers.findIndex(h => h.toLowerCase() === 'ldac_suitability_elec');
+  const gasIndex = headers.findIndex(h => h.toLowerCase() === 'ldac_suitability_gas');
+  const combinedIndex = headers.findIndex(h => 
+    h.toLowerCase() === 'ldac_combined' || h.toLowerCase() === 'ldac combined'
+  );
+  
+  console.log("Column indices:", { 
+    gridIdIndex, 
+    elecIndex, 
+    gasIndex, 
+    combinedIndex, 
+    headers: headers.join(', ') 
+  });
+  
   const dataRows = lines.slice(1).filter(line => line.trim() !== '');
   console.log(`Found ${dataRows.length} data rows in CSV`);
   
@@ -82,35 +93,38 @@ export const parseCSV = (csvText: string): HexagonData[] => {
     const values = line.split(',').map(value => value.trim());
     const data: any = {};
     
-    headers.forEach((header, i) => {
-      if (i >= values.length) {
-        console.warn(`Missing value for header ${header} in row ${index + 2}`);
-        return;
-      }
-      
-      const lowerHeader = header.toLowerCase();
-      if (lowerHeader === 'grid_id') {
-        data['GRID_ID'] = values[i];
-      } else if (lowerHeader === 'ldac_suitability_elec') {
-        data['LDAC_suitability_elec'] = parseFloat(values[i]) || 0;
-      } else if (lowerHeader === 'ldac_suitability_gas') {
-        data['LDAC_suitability_gas'] = parseFloat(values[i]) || 0;
-      } else if (lowerHeader === 'ldac_combined') {
-        data['LDAC_combined'] = parseFloat(values[i]) || 0;
-      }
-    });
-    
-    // Ensure all required fields exist
-    if (!data['GRID_ID']) {
+    // Get GRID_ID
+    if (gridIdIndex >= 0 && gridIdIndex < values.length) {
+      data['GRID_ID'] = values[gridIdIndex];
+    } else {
       console.warn(`Missing GRID_ID in row ${index + 2}`);
       data['GRID_ID'] = `unknown-${index}`;
     }
-    if (!data['LDAC_suitability_elec'] && data['LDAC_suitability_elec'] !== 0) data['LDAC_suitability_elec'] = 0;
-    if (!data['LDAC_suitability_gas'] && data['LDAC_suitability_gas'] !== 0) data['LDAC_suitability_gas'] = 0;
     
-    // Calculate LDAC_combined if it's not in the CSV
-    if (!data['LDAC_combined'] && data['LDAC_combined'] !== 0) {
-      data['LDAC_combined'] = Number((data['LDAC_suitability_elec'] + data['LDAC_suitability_gas']).toFixed(1));
+    // Get electric suitability
+    if (elecIndex >= 0 && elecIndex < values.length) {
+      data['LDAC_suitability_elec'] = parseFloat(values[elecIndex]) || 0;
+    } else {
+      data['LDAC_suitability_elec'] = 0;
+    }
+    
+    // Get gas suitability
+    if (gasIndex >= 0 && gasIndex < values.length) {
+      data['LDAC_suitability_gas'] = parseFloat(values[gasIndex]) || 0;
+    } else {
+      data['LDAC_suitability_gas'] = 0;
+    }
+    
+    // Get combined value - either from the CSV or calculate it
+    if (combinedIndex >= 0 && combinedIndex < values.length) {
+      data['LDAC_combined'] = parseFloat(values[combinedIndex]) || 0;
+      console.log(`Row ${index}: Combined from CSV = ${data['LDAC_combined']}`);
+    } else {
+      // Calculate combined if not in CSV
+      data['LDAC_combined'] = Number(
+        (data['LDAC_suitability_elec'] + data['LDAC_suitability_gas']).toFixed(1)
+      );
+      console.log(`Row ${index}: Calculated combined = ${data['LDAC_combined']}`);
     }
     
     return data as HexagonData;
