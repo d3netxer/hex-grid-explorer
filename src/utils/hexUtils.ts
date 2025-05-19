@@ -5,14 +5,14 @@ import { HexagonData, MetricKey, MetricConfig, ColorStop } from '@/types/hex';
 
 // Sample data as a fallback
 export const sampleHexData: HexagonData[] = [
-  { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c904ffffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "852c9053fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0 },
-  { GRID_ID: "855215d3fffffff", LDAC_suitability_elec: 2.6, LDAC_suitability_gas: 2.2 },
-  { GRID_ID: "855215dbfffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8 },
-  { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0 }
+  { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 120 },
+  { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 135 },
+  { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0, heating_demand: 145 },
+  { GRID_ID: "852c904ffffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 160 },
+  { GRID_ID: "852c9053fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 110 },
+  { GRID_ID: "855215d3fffffff", LDAC_suitability_elec: 2.6, LDAC_suitability_gas: 2.2, heating_demand: 180 },
+  { GRID_ID: "855215dbfffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8, heating_demand: 190 },
+  { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0, heating_demand: 175 }
 ];
 
 // This will store loaded data
@@ -23,8 +23,8 @@ export let hexData: HexagonData[] = [];
  */
 export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
   try {
-    // Fetch the CSV file
-    const response = await fetch('/src/data/hexagon_data.csv');
+    // Fetch the CSV file - update path to use public folder
+    const response = await fetch('/data/hexagon_data.csv');
     
     if (!response.ok) {
       console.error(`Failed to load CSV: ${response.status} ${response.statusText}`);
@@ -62,6 +62,8 @@ export const parseCSV = (csvText: string): HexagonData[] => {
         data['LDAC_suitability_elec'] = parseFloat(values[index]);
       } else if (header === 'LDAC_suitability_gas') {
         data['LDAC_suitability_gas'] = parseFloat(values[index]);
+      } else if (header === 'heating_demand') {
+        data['heating_demand'] = parseFloat(values[index]);
       } else {
         data[header] = values[index];
       }
@@ -189,5 +191,16 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
       { value: 2.2, color: '#9b87f5' }
     ],
     format: (value) => value.toString()
+  },
+  heating_demand: {
+    name: 'Heating Demand',
+    key: 'heating_demand',
+    description: 'Annual heating demand intensity for the area',
+    unit: 'kWh/m²',
+    colorScale: [
+      { value: 100, color: '#f5f5f5' },
+      { value: 200, color: '#F97316' }
+    ],
+    format: (value) => `${value} kWh/m²`
   }
 };
