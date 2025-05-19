@@ -63,18 +63,23 @@ export const parseCSV = (csvText: string): HexagonData[] => {
     const data: any = {};
     
     headers.forEach((header, index) => {
-      if (header === 'grid_id') {
+      if (header === 'grid_id' || header === 'GRID_ID') {
         data['GRID_ID'] = values[index];
-      } else if (header === 'LDAC_suitability_elec') {
-        data['LDAC_suitability_elec'] = parseFloat(values[index]);
-      } else if (header === 'LDAC_suitability_gas') {
-        data['LDAC_suitability_gas'] = parseFloat(values[index]);
+      } else if (header === 'LDAC_suitability_elec' || header === 'ldac_suitability_elec') {
+        data['LDAC_suitability_elec'] = parseFloat(values[index]) || 0;
+      } else if (header === 'LDAC_suitability_gas' || header === 'ldac_suitability_gas') {
+        data['LDAC_suitability_gas'] = parseFloat(values[index]) || 0;
       } else if (header === 'heating_demand') {
-        data['heating_demand'] = parseFloat(values[index]);
+        data['heating_demand'] = parseFloat(values[index]) || 0;
       } else {
         data[header] = values[index];
       }
     });
+    
+    // Ensure all required fields exist
+    if (!data['LDAC_suitability_elec']) data['LDAC_suitability_elec'] = 0;
+    if (!data['LDAC_suitability_gas']) data['LDAC_suitability_gas'] = 0;
+    if (!data['heating_demand']) data['heating_demand'] = 0;
     
     return data as HexagonData;
   });
@@ -89,14 +94,23 @@ export const getHexPolygons = (): GeoJSON.FeatureCollection => {
   
   const features = dataToUse.map(hex => {
     try {
+      // Validate H3 index before attempting to get boundary
+      if (!h3.isValidCell(hex.GRID_ID)) {
+        console.error(`Invalid H3 index: ${hex.GRID_ID}`);
+        return null;
+      }
+      
       const boundary = h3.cellToBoundary(hex.GRID_ID);
+      
+      // H3 returns [lat, lng] but GeoJSON expects [lng, lat]
+      const coordinates = boundary.map(point => [point[1], point[0]]);
       
       const feature: GeoJSON.Feature = {
         type: 'Feature',
         properties: { ...hex },
         geometry: {
           type: 'Polygon',
-          coordinates: [boundary.map(coord => [coord[1], coord[0]])]
+          coordinates: [coordinates]
         }
       };
       

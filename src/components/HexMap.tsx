@@ -66,12 +66,12 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
     console.log("Initializing map");
     
-    // Initialize the map with coordinates optimized for hexagon data
+    // Initialize the map with coordinates for New York area (adjusted for sample data)
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-74.5, 40], // Adjusted to view sample data
-      zoom: 7, // Increased zoom level
+      center: [-74.0, 40.7], // New York City coordinates
+      zoom: 9, // Higher zoom level
       pitch: 0, // Flat view for better hexagon visibility
     });
 
@@ -104,118 +104,149 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
       console.log("Map not ready yet, waiting...");
       return;
     }
+    
+    if (!map.current.isStyleLoaded()) {
+      console.log("Map style not fully loaded, waiting...");
+      // Try again in a short while
+      const timer = setTimeout(() => {
+        updateHexagonColors();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
 
     console.log("Adding hexagon data to map");
     const hexPolygons = getHexPolygons();
     console.log("GeoJSON created with", hexPolygons.features.length, "features");
     
-    // Add source if it doesn't exist
-    if (!map.current.getSource('hexagons')) {
-      console.log("Adding new hexagon source to map");
-      map.current.addSource('hexagons', {
-        type: 'geojson',
-        data: hexPolygons
-      });
-    } else {
-      // Otherwise update the existing source
-      console.log("Updating existing hexagon source");
-      (map.current.getSource('hexagons') as mapboxgl.GeoJSONSource).setData(hexPolygons);
-    }
+    try {
+      // Add source if it doesn't exist
+      if (!map.current.getSource('hexagons')) {
+        console.log("Adding new hexagon source to map");
+        map.current.addSource('hexagons', {
+          type: 'geojson',
+          data: hexPolygons
+        });
+      } else {
+        // Otherwise update the existing source
+        console.log("Updating existing hexagon source");
+        (map.current.getSource('hexagons') as mapboxgl.GeoJSONSource).setData(hexPolygons);
+      }
 
-    // Add hexagon layer if it doesn't exist
-    if (!map.current.getLayer('hexagon-fill')) {
-      console.log("Adding hexagon layers");
-      map.current.addLayer({
-        id: 'hexagon-fill',
-        type: 'fill',
-        source: 'hexagons',
-        paint: {
-          'fill-opacity': 0.7
-        }
-      });
+      // Add hexagon layer if it doesn't exist
+      if (!map.current.getLayer('hexagon-fill')) {
+        console.log("Adding hexagon layers");
+        map.current.addLayer({
+          id: 'hexagon-fill',
+          type: 'fill',
+          source: 'hexagons',
+          paint: {
+            'fill-opacity': 0.7
+          }
+        });
 
-      // Add hexagon outline layer
-      map.current.addLayer({
-        id: 'hexagon-outline',
-        type: 'line',
-        source: 'hexagons',
-        paint: {
-          'line-color': '#ffffff',
-          'line-width': 1,
-          'line-opacity': 0.5
-        }
-      });
+        // Add hexagon outline layer
+        map.current.addLayer({
+          id: 'hexagon-outline',
+          type: 'line',
+          source: 'hexagons',
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': 1,
+            'line-opacity': 0.5
+          }
+        });
 
-      // Add click interaction
-      map.current.on('click', 'hexagon-fill', (e) => {
-        if (e.features && e.features.length > 0) {
-          const feature = e.features[0];
-          setSelectedHexagon(feature.properties as HexagonData);
+        // Add click interaction
+        map.current.on('click', 'hexagon-fill', (e) => {
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0];
+            setSelectedHexagon(feature.properties as HexagonData);
 
-          // Create a popup
-          new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div>
-                <h3 class="text-lg font-bold">Hexagon Data</h3>
-                <p class="text-sm">${feature.properties.GRID_ID}</p>
-                <div class="mt-2">
-                  <strong>${metricConfigs[selectedMetric].name}:</strong> 
-                  ${metricConfigs[selectedMetric].format(feature.properties[selectedMetric])}
+            // Create a popup
+            new mapboxgl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div>
+                  <h3 class="text-lg font-bold">Hexagon Data</h3>
+                  <p class="text-sm">${feature.properties.GRID_ID}</p>
+                  <div class="mt-2">
+                    <strong>${metricConfigs[selectedMetric].name}:</strong> 
+                    ${metricConfigs[selectedMetric].format(feature.properties[selectedMetric])}
+                  </div>
                 </div>
-              </div>
-            `)
-            .addTo(map.current!);
-        }
-      });
+              `)
+              .addTo(map.current!);
+          }
+        });
 
-      // Change cursor on hover
-      map.current.on('mouseenter', 'hexagon-fill', () => {
-        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
-      });
+        // Change cursor on hover
+        map.current.on('mouseenter', 'hexagon-fill', () => {
+          if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+        });
 
-      map.current.on('mouseleave', 'hexagon-fill', () => {
-        if (map.current) map.current.getCanvas().style.cursor = '';
-      });
+        map.current.on('mouseleave', 'hexagon-fill', () => {
+          if (map.current) map.current.getCanvas().style.cursor = '';
+        });
+      }
+
+      updateHexagonColors();
+    } catch (error) {
+      console.error("Error adding hexagon data to map:", error);
+      toast.error("Error rendering hexagons on map");
+      
+      // Try again after a delay
+      const timer = setTimeout(() => {
+        updateHexagonColors();
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-
-    updateHexagonColors();
   }, [mapLoaded, selectedMetric, dataLoaded]);
 
   // Update hexagon colors when metric or filter changes
   const updateHexagonColors = () => {
     if (!map.current || !mapLoaded) return;
-
-    const config = metricConfigs[selectedMetric];
-    const [min, max] = findMinMaxValues(selectedMetric);
     
-    // Create a color expression for the fill color
-    const colorStops = config.colorScale.flatMap(stop => [stop.value, stop.color]);
-    const colorExpression: mapboxgl.Expression = [
-      'interpolate',
-      ['linear'],
-      ['get', selectedMetric],
-      ...colorStops
-    ];
+    if (!map.current.isStyleLoaded()) {
+      console.log("Map style not fully loaded, can't update hexagon colors yet");
+      return;
+    }
 
-    // Update fill color based on selected metric
-    map.current.setPaintProperty('hexagon-fill', 'fill-color', colorExpression);
+    try {
+      const config = metricConfigs[selectedMetric];
+      const [min, max] = findMinMaxValues(selectedMetric);
+      
+      // Create a color expression for the fill color
+      const colorStops = config.colorScale.flatMap(stop => [stop.value, stop.color]);
+      const colorExpression: mapboxgl.Expression = [
+        'interpolate',
+        ['linear'],
+        ['get', selectedMetric],
+        ...colorStops
+      ];
 
-    // Apply filter if one is set
-    if (filterValue) {
-      map.current.setFilter('hexagon-fill', [
-        'all',
-        ['>=', selectedMetric, filterValue[0]],
-        ['<=', selectedMetric, filterValue[1]]
-      ]);
-      map.current.setFilter('hexagon-outline', [
-        'all',
-        ['>=', selectedMetric, filterValue[0]],
-        ['<=', selectedMetric, filterValue[1]]
-      ]);
-    } else {
-      map.current.setFilter('hexagon-fill', null);
-      map.current.setFilter('hexagon-outline', null);
+      // Update fill color based on selected metric
+      if (map.current.getLayer('hexagon-fill')) {
+        map.current.setPaintProperty('hexagon-fill', 'fill-color', colorExpression);
+
+        // Apply filter if one is set
+        if (filterValue) {
+          map.current.setFilter('hexagon-fill', [
+            'all',
+            ['>=', selectedMetric, filterValue[0]],
+            ['<=', selectedMetric, filterValue[1]]
+          ]);
+          map.current.setFilter('hexagon-outline', [
+            'all',
+            ['>=', selectedMetric, filterValue[0]],
+            ['<=', selectedMetric, filterValue[1]]
+          ]);
+        } else {
+          map.current.setFilter('hexagon-fill', null);
+          map.current.setFilter('hexagon-outline', null);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating hexagon colors:", error);
     }
   };
 
@@ -257,10 +288,56 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
   const { min, max, step } = getFilterRange();
 
+  // Helper function to fit the map to the hexagon bounds
+  const fitMapToHexagons = () => {
+    if (!map.current) return;
+    
+    try {
+      const hexPolygons = getHexPolygons();
+      if (hexPolygons.features.length === 0) return;
+      
+      // Calculate bounds from all hexagon features
+      let bounds = new mapboxgl.LngLatBounds();
+      
+      hexPolygons.features.forEach(feature => {
+        const coords = feature.geometry.coordinates[0];
+        coords.forEach((coord: [number, number]) => {
+          bounds.extend(coord as mapboxgl.LngLatLike);
+        });
+      });
+      
+      // Fit map to these bounds with some padding
+      map.current.fitBounds(bounds, {
+        padding: 50,
+        maxZoom: 12
+      });
+      
+      console.log("Map fitted to hexagon bounds");
+    } catch (error) {
+      console.error("Error fitting map to hexagons:", error);
+    }
+  };
+
+  // Add button to fit map to hexagons
+  const fitToDataButton = (
+    <Button 
+      variant="outline" 
+      size="sm"
+      onClick={fitMapToHexagons}
+      className="absolute right-4 top-4 z-20 flex items-center gap-1"
+    >
+      <Navigation className="h-4 w-4" />
+      <span>Fit to Data</span>
+    </Button>
+  );
+
   return (
     <div className="relative h-full w-full">
       {/* Map container */}
       <div ref={mapContainer} className="map-container h-full" style={{position: 'absolute', top: 0, bottom: 0, width: '100%'}} />
+
+      {/* Fit to data button */}
+      {fitToDataButton}
 
       {/* Loading indicator */}
       {dataLoading && (
@@ -339,6 +416,9 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
                     </p>
                     <p className="text-xs">
                       <strong>Gas Suitability:</strong> {selectedHexagon.LDAC_suitability_gas}
+                    </p>
+                    <p className="text-xs">
+                      <strong>Heating Demand:</strong> {selectedHexagon.heating_demand} kWh/m²
                     </p>
                   </div>
                 </div>
