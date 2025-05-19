@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -269,6 +268,7 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
   // Handle metric selection change
   const handleMetricChange = (value: string) => {
+    console.log(`Changing metric to: ${value}`);
     setSelectedMetric(value as MetricKey);
     setFilterValue(null); // Reset filter when changing metrics
     updateHexagonColors();

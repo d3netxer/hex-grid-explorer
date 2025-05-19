@@ -229,7 +229,7 @@ export const findMinMaxValues = (metric: MetricKey): [number, number] => {
   return [min, max];
 };
 
-// Update the metric configurations with the new color scales and remove heating_demand
+// Update the metric configurations to ensure correct mapping
 export const metricConfigs: Record<MetricKey, MetricConfig> = {
   LDAC_suitability_elec: {
     name: 'LDAC Suitability (Electric)',
