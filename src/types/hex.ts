@@ -3,7 +3,8 @@ export interface HexagonData {
   GRID_ID: string;
   LDAC_suitability_elec: number;
   LDAC_suitability_gas: number;
-  heating_demand: number; // Added new metric
+  LDAC_combined: number;  // Added new metric
+  heating_demand: number;
 }
 
 export type MetricKey = keyof Omit<HexagonData, 'GRID_ID'>;

@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -446,6 +445,9 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
                     </p>
                     <p className="text-xs">
                       <strong>Gas Suitability:</strong> {selectedHexagon.LDAC_suitability_gas}
+                    </p>
+                    <p className="text-xs">
+                      <strong>Combined Suitability:</strong> {selectedHexagon.LDAC_combined}
                     </p>
                     <p className="text-xs">
                       <strong>Heating Demand:</strong> {selectedHexagon.heating_demand} kWh/m²

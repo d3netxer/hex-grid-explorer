@@ -1,18 +1,17 @@
-
 import * as h3 from 'h3-js';
 import { GeoJSON } from 'geojson';
 import { HexagonData, MetricKey, MetricConfig, ColorStop } from '@/types/hex';
 
 // Sample data as a fallback
 export const sampleHexData: HexagonData[] = [
-  { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 120 },
-  { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 135 },
-  { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0, heating_demand: 145 },
-  { GRID_ID: "852c904ffffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 160 },
-  { GRID_ID: "852c9053fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, heating_demand: 110 },
-  { GRID_ID: "855215d3fffffff", LDAC_suitability_elec: 2.6, LDAC_suitability_gas: 2.2, heating_demand: 180 },
-  { GRID_ID: "855215dbfffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8, heating_demand: 190 },
-  { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0, heating_demand: 175 }
+  { GRID_ID: "852c9043fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 120 },
+  { GRID_ID: "852c9047fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 135 },
+  { GRID_ID: "852c904bfffffff", LDAC_suitability_elec: 4.2, LDAC_suitability_gas: 0, LDAC_combined: 4.2, heating_demand: 145 },
+  { GRID_ID: "852c904ffffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 160 },
+  { GRID_ID: "852c9053fffffff", LDAC_suitability_elec: 4.6, LDAC_suitability_gas: 0, LDAC_combined: 4.6, heating_demand: 110 },
+  { GRID_ID: "855215d3fffffff", LDAC_suitability_elec: 2.6, LDAC_suitability_gas: 2.2, LDAC_combined: 4.8, heating_demand: 180 },
+  { GRID_ID: "855215dbfffffff", LDAC_suitability_elec: 2.2, LDAC_suitability_gas: 1.8, LDAC_combined: 4.0, heating_demand: 190 },
+  { GRID_ID: "855221a7fffffff", LDAC_suitability_elec: 2, LDAC_suitability_gas: 0, LDAC_combined: 2.0, heating_demand: 175 }
 ];
 
 // This will store loaded data
@@ -38,16 +37,22 @@ export const loadHexagonDataFromCSV = async (): Promise<HexagonData[]> => {
     console.log("CSV loaded successfully, first 100 chars:", csvText.substring(0, 100));
     const parsedData = parseCSV(csvText);
     
+    // Calculate the combined LDAC values
+    const dataWithCombined = parsedData.map(hex => ({
+      ...hex,
+      LDAC_combined: Number((hex.LDAC_suitability_elec + hex.LDAC_suitability_gas).toFixed(1))
+    }));
+    
     // Store the data in the module-level variable
-    hexData = parsedData;
-    console.log(`Loaded ${parsedData.length} hexagon records`);
+    hexData = dataWithCombined;
+    console.log(`Loaded ${dataWithCombined.length} hexagon records with combined LDAC values`);
     
     // Log the first record to verify structure
-    if (parsedData.length > 0) {
-      console.log("Sample record:", JSON.stringify(parsedData[0]));
+    if (dataWithCombined.length > 0) {
+      console.log("Sample record:", JSON.stringify(dataWithCombined[0]));
     }
     
-    return parsedData;
+    return dataWithCombined;
   } catch (error) {
     console.error('Error loading hexagon data from CSV:', error);
     // Return sample data as fallback
@@ -90,6 +95,8 @@ export const parseCSV = (csvText: string): HexagonData[] => {
         data['LDAC_suitability_elec'] = parseFloat(values[i]) || 0;
       } else if (lowerHeader === 'ldac_suitability_gas') {
         data['LDAC_suitability_gas'] = parseFloat(values[i]) || 0;
+      } else if (lowerHeader === 'ldac_combined') {
+        data['LDAC_combined'] = parseFloat(values[i]) || 0;
       } else if (lowerHeader === 'heating_demand') {
         data['heating_demand'] = parseFloat(values[i]) || 0;
       } else {
@@ -105,6 +112,11 @@ export const parseCSV = (csvText: string): HexagonData[] => {
     if (!data['LDAC_suitability_elec'] && data['LDAC_suitability_elec'] !== 0) data['LDAC_suitability_elec'] = 0;
     if (!data['LDAC_suitability_gas'] && data['LDAC_suitability_gas'] !== 0) data['LDAC_suitability_gas'] = 0;
     if (!data['heating_demand'] && data['heating_demand'] !== 0) data['heating_demand'] = 0;
+    
+    // Calculate LDAC_combined if it's not in the CSV
+    if (!data['LDAC_combined'] && data['LDAC_combined'] !== 0) {
+      data['LDAC_combined'] = Number((data['LDAC_suitability_elec'] + data['LDAC_suitability_gas']).toFixed(1));
+    }
     
     return data as HexagonData;
   });
@@ -222,7 +234,7 @@ export const findMinMaxValues = (metric: MetricKey): [number, number] => {
   return [min, max];
 };
 
-// Configuration for each metric
+// Update the metric configurations to include the new combined metric
 export const metricConfigs: Record<MetricKey, MetricConfig> = {
   LDAC_suitability_elec: {
     name: 'LDAC Suitability (Electric)',
@@ -243,6 +255,17 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
     colorScale: [
       { value: 0, color: '#f5f5f5' },
       { value: 2.2, color: '#9b87f5' }
+    ],
+    format: (value) => value.toString()
+  },
+  LDAC_combined: {
+    name: 'LDAC Combined Suitability',
+    key: 'LDAC_combined',
+    description: 'Combined suitability score of electric and gas LDAC systems',
+    unit: 'score',
+    colorScale: [
+      { value: 0, color: '#f5f5f5' },
+      { value: 7, color: '#8B5CF6' }
     ],
     format: (value) => value.toString()
   },
