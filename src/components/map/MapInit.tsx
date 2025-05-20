@@ -19,12 +19,12 @@ const MapInit: React.FC<MapInitProps> = ({ mapboxToken, onMapLoad }) => {
     // Set Mapbox access token
     mapboxgl.accessToken = mapboxToken;
     
-    // Initialize the map with default coordinates
+    // Initialize the map centered on Saudi Arabia
     const mapInstance = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-74.0, 40.7], // Default coordinates (will be updated)
-      zoom: 9,
+      center: [45.079162, 23.885942], // Saudi Arabia coordinates
+      zoom: 4.5,
       pitch: 0,
     });
 

@@ -1,3 +1,4 @@
+
 import { useEffect, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { HexagonData, MetricKey } from '@/types/hex';
@@ -67,7 +68,7 @@ export const useHexagonLayer = ({
           type: 'fill',
           source: 'hexagons',
           paint: {
-            'fill-opacity': 0.8,  // Increased from 0.7 for better visibility
+            'fill-opacity': 0.8,
             'fill-color': '#000000'  // Default color to ensure the layer is visible
           }
         });
@@ -116,17 +117,26 @@ export const useHexagonLayer = ({
       console.log("Updating hexagon colors for metric:", selectedMetric);
       const config = metricConfigs[selectedMetric];
       
-      // Use a simpler, more direct approach for coloring
-      const stops = config.colorScale.map(stop => {
-        return [stop.value, stop.color];
-      }).flat();
+      // Create color expression for mapbox
+      // Fix the step expression format by ensuring even number of arguments
+      const colorExpression = [
+        'case',
+        ['==', ['get', selectedMetric], 0], 'rgba(0,0,0,0)',
+        [
+          'step',
+          ['get', selectedMetric],
+          config.colorScale[0].color, // Default color
+        ]
+      ];
       
-      // Make sure the first color stop handles zero values
-      if (stops[0] !== 0) {
-        stops.unshift(0, 'rgba(0,0,0,0)');
-      }
+      // Add proper stops pairs (value, color)
+      config.colorScale.forEach((stop, index) => {
+        if (index > 0) { // Skip the first one as it's already the default
+          colorExpression[3].push(stop.value, stop.color);
+        }
+      });
       
-      console.log("Color stops for mapbox:", stops);
+      console.log("Color expression:", JSON.stringify(colorExpression));
       
       // Check if the hexagon-fill layer exists
       if (!map.getLayer('hexagon-fill')) {
@@ -134,12 +144,8 @@ export const useHexagonLayer = ({
         return;
       }
 
-      // Apply step expression for colors
-      map.setPaintProperty('hexagon-fill', 'fill-color', [
-        'case',
-        ['==', ['get', selectedMetric], 0], 'rgba(0,0,0,0)',  // Handle zero values
-        ['step', ['get', selectedMetric], ...stops]           // Use step for all other values
-      ]);
+      // Apply expression for colors
+      map.setPaintProperty('hexagon-fill', 'fill-color', colorExpression);
       
       console.log("Updated hexagon colors with expression");
 
@@ -147,13 +153,13 @@ export const useHexagonLayer = ({
       if (filterValue) {
         map.setFilter('hexagon-fill', [
           'all',
-          ['>=', selectedMetric, filterValue[0]],
-          ['<=', selectedMetric, filterValue[1]]
+          ['>=', ['get', selectedMetric], filterValue[0]],
+          ['<=', ['get', selectedMetric], filterValue[1]]
         ]);
         map.setFilter('hexagon-outline', [
           'all',
-          ['>=', selectedMetric, filterValue[0]],
-          ['<=', selectedMetric, filterValue[1]]
+          ['>=', ['get', selectedMetric], filterValue[0]],
+          ['<=', ['get', selectedMetric], filterValue[1]]
         ]);
       } else {
         map.setFilter('hexagon-fill', null);

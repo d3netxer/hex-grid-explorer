@@ -17,7 +17,13 @@ const HexagonInteractions: React.FC<HexagonInteractionsProps> = ({
 }) => {
   // Set up hexagon interactions
   const setupInteractions = useCallback(() => {
-    if (!map || !map.getLayer('hexagon-fill')) return;
+    if (!map) return;
+    
+    // Make sure map is loaded and hexagon-fill layer exists
+    if (!map.isStyleLoaded() || !map.getLayer('hexagon-fill')) {
+      console.log("Map or hexagon layer not ready for interactions");
+      return;
+    }
 
     // Add click interaction
     const handleClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
@@ -69,14 +75,19 @@ const HexagonInteractions: React.FC<HexagonInteractionsProps> = ({
 
   // Set up interactions when component mounts or dependencies change
   useEffect(() => {
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) return;
     
-    const cleanup = setupInteractions();
+    // Delay setting up interactions to ensure the layer is loaded
+    const timer = setTimeout(() => {
+      if (map && map.getLayer('hexagon-fill')) {
+        const cleanup = setupInteractions();
+        return () => {
+          if (cleanup) cleanup();
+        };
+      }
+    }, 1000);
     
-    // Clean up interactions when component unmounts or dependencies change
-    return () => {
-      if (cleanup) cleanup();
-    };
+    return () => clearTimeout(timer);
   }, [map, setupInteractions]);
 
   return null; // This is a non-visual component
