@@ -2,10 +2,10 @@
 import React, { useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { HexagonData, MetricKey } from '@/types/hex';
-import { getHexPolygons } from '@/utils/hexUtils';
 import MapInit from './MapInit';
 import HexagonLayer from './HexagonLayer';
 import FitToDataButton from './FitToDataButton';
+import { fitMapToHexagons } from '@/utils/mapBounds';
 
 interface MapboxGlMapProps {
   mapboxToken: string;
@@ -37,46 +37,9 @@ const MapboxGlMap: React.FC<MapboxGlMapProps> = ({
     console.log("Hexagon layer is ready");
   }, []);
 
-  // Helper function to fit the map to the hexagon bounds
-  const fitMapToHexagons = useCallback(() => {
-    if (!map) return;
-    
-    try {
-      const hexPolygons = getHexPolygons();
-      if (hexPolygons.features.length === 0) {
-        console.log("No hexagon features to fit map to");
-        return;
-      }
-      
-      console.log("Fitting map to hexagons...");
-      
-      // Calculate bounds from all hexagon features
-      const bounds = new mapboxgl.LngLatBounds();
-      
-      hexPolygons.features.forEach(feature => {
-        if (feature.geometry.type === 'Polygon') {
-          const polygonCoords = feature.geometry.coordinates;
-          if (polygonCoords && polygonCoords[0]) {
-            polygonCoords[0].forEach((coord) => {
-              bounds.extend(coord as mapboxgl.LngLatLike);
-            });
-          }
-        }
-      });
-      
-      if (!bounds.isEmpty()) {
-        // Fit map to these bounds with some padding
-        map.fitBounds(bounds, {
-          padding: 50,
-          maxZoom: 12,
-          duration: 1000
-        });
-        
-        console.log("Map fitted to hexagon bounds");
-      }
-    } catch (error) {
-      console.error("Error fitting map to hexagons:", error);
-    }
+  // Use the utility function to fit map to hexagons
+  const handleFitToData = useCallback(() => {
+    fitMapToHexagons(map);
   }, [map]);
 
   return (
@@ -96,7 +59,7 @@ const MapboxGlMap: React.FC<MapboxGlMapProps> = ({
         />
       )}
       
-      <FitToDataButton onClick={fitMapToHexagons} />
+      <FitToDataButton onClick={handleFitToData} />
     </>
   );
 };
