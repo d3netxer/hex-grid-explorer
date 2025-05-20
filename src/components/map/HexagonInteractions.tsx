@@ -2,7 +2,6 @@
 import { useCallback, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { HexagonData, MetricKey } from '@/types/hex';
-import { getColorForValue, metricConfigs } from '@/utils/hexUtils';
 import { createHexagonPopup } from './HexagonPopup';
 
 interface HexagonInteractionsProps {
@@ -21,7 +20,7 @@ const HexagonInteractions: React.FC<HexagonInteractionsProps> = ({
     if (!map || !map.getLayer('hexagon-fill')) return;
 
     // Add click interaction
-    map.on('click', 'hexagon-fill', (e) => {
+    const handleClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
       if (e.features && e.features.length > 0) {
         const feature = e.features[0];
         const props = feature.properties as HexagonData;
@@ -44,30 +43,41 @@ const HexagonInteractions: React.FC<HexagonInteractionsProps> = ({
           selectedMetric
         });
       }
-    });
+    };
 
     // Change cursor on hover
-    map.on('mouseenter', 'hexagon-fill', () => {
+    const handleMouseEnter = () => {
       if (map) map.getCanvas().style.cursor = 'pointer';
-    });
+    };
 
-    map.on('mouseleave', 'hexagon-fill', () => {
+    const handleMouseLeave = () => {
       if (map) map.getCanvas().style.cursor = '';
-    });
+    };
+
+    // Add event listeners
+    map.on('click', 'hexagon-fill', handleClick);
+    map.on('mouseenter', 'hexagon-fill', handleMouseEnter);
+    map.on('mouseleave', 'hexagon-fill', handleMouseLeave);
+
+    // Return cleanup function that will be used in the useEffect
+    return () => {
+      map.off('click', 'hexagon-fill', handleClick);
+      map.off('mouseenter', 'hexagon-fill', handleMouseEnter);
+      map.off('mouseleave', 'hexagon-fill', handleMouseLeave);
+    };
   }, [map, selectedMetric, onHexagonSelect]);
 
-  // Clean up interactions when component unmounts or map changes
+  // Set up interactions when component mounts or dependencies change
   useEffect(() => {
     if (!map) return;
     
+    const cleanup = setupInteractions();
+    
+    // Clean up interactions when component unmounts or dependencies change
     return () => {
-      if (map) {
-        map.off('click', 'hexagon-fill');
-        map.off('mouseenter', 'hexagon-fill');
-        map.off('mouseleave', 'hexagon-fill');
-      }
+      if (cleanup) cleanup();
     };
-  }, [map]);
+  }, [map, setupInteractions]);
 
   return null; // This is a non-visual component
 };

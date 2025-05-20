@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { HexagonData, MetricKey } from '@/types/hex';
-import { getHexPolygons, getColorForValue, metricConfigs } from '@/utils/hexUtils';
+import { getHexPolygons, metricConfigs } from '@/utils/hexUtils';
 import { toast } from "sonner";
 
 interface UseHexagonLayerProps {
@@ -82,49 +82,6 @@ export const useHexagonLayer = ({
             'line-opacity': 0.5
           }
         });
-
-        // Add click interaction
-        map.on('click', 'hexagon-fill', (e) => {
-          if (e.features && e.features.length > 0) {
-            const feature = e.features[0];
-            const props = feature.properties as HexagonData;
-            onHexagonSelect(props);
-            
-            console.log("Clicked hexagon:", {
-              id: props.GRID_ID,
-              electric: props.LDAC_suitability_elec,
-              gas: props.LDAC_suitability_gas,
-              combined: props.LDAC_combined,
-              selectedMetric: selectedMetric,
-              metricValue: props[selectedMetric],
-              color: getColorForValue(props[selectedMetric], metricConfigs[selectedMetric].colorScale)
-            });
-
-            // Create a popup
-            new mapboxgl.Popup()
-              .setLngLat(e.lngLat)
-              .setHTML(`
-                <div>
-                  <h3 class="text-lg font-bold">Hexagon Data</h3>
-                  <p class="text-sm">${props.GRID_ID}</p>
-                  <div class="mt-2">
-                    <strong>${metricConfigs[selectedMetric].name}:</strong> 
-                    ${metricConfigs[selectedMetric].format(props[selectedMetric])}
-                  </div>
-                </div>
-              `)
-              .addTo(map);
-          }
-        });
-
-        // Change cursor on hover
-        map.on('mouseenter', 'hexagon-fill', () => {
-          if (map) map.getCanvas().style.cursor = 'pointer';
-        });
-
-        map.on('mouseleave', 'hexagon-fill', () => {
-          if (map) map.getCanvas().style.cursor = '';
-        });
       }
 
       updateHexagonColors();
@@ -139,7 +96,7 @@ export const useHexagonLayer = ({
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [map, selectedMetric, onHexagonSelect, onLayerReady]);
+  }, [map, selectedMetric, onLayerReady]);
 
   // Helper function to update hexagon colors based on metric and filter
   const updateHexagonColors = useCallback(() => {
@@ -154,27 +111,29 @@ export const useHexagonLayer = ({
       const config = metricConfigs[selectedMetric];
       console.log(`Updating colors for ${selectedMetric} with config:`, config);
       
-      // Create expressions for Mapbox to handle coloring
-      // First, collect all stops from the color scale
-      const colorStops: any[] = [];
+      // Create a clear step expression for mapbox
+      const colorSteps: (string | number)[] = [];
       
-      // Special handling for transparent (value 0)
-      colorStops.push(0, 'rgba(0,0,0,0)'); // Transparent for zero values
-      
-      // Add remaining color stops
+      // Add each stop from the config's color scale
       config.colorScale.forEach(stop => {
-        if (stop.value > 0) { // Skip the transparent stop we already added
-          colorStops.push(stop.value, stop.color);
+        if (stop.value === 0) {
+          // Handle the transparent/zero case
+          colorSteps.push(0);
+          colorSteps.push('rgba(0,0,0,0)');
+        } else {
+          colorSteps.push(stop.value);
+          colorSteps.push(stop.color);
         }
       });
       
-      console.log("Color stops for mapbox expression:", colorStops);
+      console.log("Color steps for mapbox expression:", colorSteps);
       
+      // Build the proper step expression for mapbox
       const colorExpression: mapboxgl.Expression = [
         'step',
         ['get', selectedMetric],
-        'rgba(0,0,0,0)', // Default color for value 0
-        ...colorStops.slice(2) // Skip the first stop as it's handled in the default
+        'rgba(0,0,0,0)', // Default transparent for zero values
+        ...colorSteps.slice(2) // Skip the first pair as it's already the default
       ];
 
       // Update fill color based on selected metric
@@ -224,8 +183,10 @@ export const useHexagonLayer = ({
 
   // Update hexagon colors when metric or filter changes
   useEffect(() => {
-    updateHexagonColors();
-  }, [filterValue, selectedMetric, updateHexagonColors]);
+    if (map && map.isStyleLoaded() && map.getLayer('hexagon-fill')) {
+      updateHexagonColors();
+    }
+  }, [filterValue, selectedMetric, map, updateHexagonColors]);
 
   return {
     updateHexagonLayer,
