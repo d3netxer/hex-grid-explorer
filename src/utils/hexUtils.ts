@@ -1,4 +1,3 @@
-
 import * as h3 from 'h3-js';
 import { GeoJSON } from 'geojson';
 import { HexagonData, MetricKey, MetricConfig, ColorStop } from '@/types/hex';
@@ -177,6 +176,13 @@ export const getHexPolygons = (): GeoJSON.FeatureCollection => {
 
 // Get color for a specific value based on the color scale
 export const getColorForValue = (value: number, colorScale: ColorStop[]): string => {
+  // Special handling for zero or null values to ensure transparency
+  if (value === 0 || value === null || value === undefined) {
+    // Find the transparent color stop or use default transparent
+    const transparentStop = colorScale.find(stop => stop.color === 'transparent');
+    return transparentStop ? transparentStop.color : 'transparent';
+  }
+  
   if (colorScale.length < 2) return colorScale[0]?.color || '#000000';
   
   const sortedStops = [...colorScale].sort((a, b) => a.value - b.value);
@@ -243,7 +249,7 @@ export const findMinMaxValues = (metric: MetricKey): [number, number] => {
   return [min, max];
 };
 
-// Update the metric configurations to ensure correct mapping
+// Update the metric configurations for better visual representation
 export const metricConfigs: Record<MetricKey, MetricConfig> = {
   LDAC_suitability_elec: {
     name: 'LDAC Suitability (Electric)',
@@ -252,8 +258,9 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
     unit: 'score',
     colorScale: [
       { value: 0, color: 'transparent' },
-      { value: 1, color: '#edf8e9' },
-      { value: 2, color: '#bae4b3' },
+      { value: 0.5, color: '#edf8e9' },
+      { value: 1, color: '#c7e9c0' },
+      { value: 2, color: '#a1d99b' },
       { value: 3, color: '#74c476' },
       { value: 4, color: '#31a354' },
       { value: 5, color: '#006d2c' }
@@ -267,8 +274,9 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
     unit: 'score',
     colorScale: [
       { value: 0, color: 'transparent' },
-      { value: 1, color: '#edf8e9' },
-      { value: 2, color: '#bae4b3' },
+      { value: 0.5, color: '#edf8e9' },
+      { value: 1, color: '#c7e9c0' },
+      { value: 2, color: '#a1d99b' },
       { value: 3, color: '#74c476' },
       { value: 4, color: '#31a354' },
       { value: 5, color: '#006d2c' }
@@ -282,8 +290,9 @@ export const metricConfigs: Record<MetricKey, MetricConfig> = {
     unit: 'score',
     colorScale: [
       { value: 0, color: 'transparent' },
-      { value: 1, color: '#edf8e9' },
-      { value: 2, color: '#bae4b3' },
+      { value: 0.5, color: '#edf8e9' },
+      { value: 1, color: '#c7e9c0' },
+      { value: 2, color: '#a1d99b' },
       { value: 3, color: '#74c476' },
       { value: 4, color: '#31a354' },
       { value: 5, color: '#006d2c' }

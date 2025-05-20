@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -15,12 +16,14 @@ import {
   getHexPolygons, 
   metricConfigs,
   findMinMaxValues,
-  loadHexagonDataFromCSV
+  loadHexagonDataFromCSV,
+  getColorForValue
 } from '@/utils/hexUtils';
 import { MetricKey, HexagonData } from '@/types/hex';
 import { Map, Navigation } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
+import HexLegend from './HexLegend';
 
 interface HexMapProps {
   mapboxToken: string;
@@ -135,6 +138,18 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
     console.log(`Current metric: ${selectedMetric}`);
     if (hexPolygons.features.length > 0) {
       console.log("Sample hexagon properties:", hexPolygons.features[0].properties);
+      
+      // Debug specific hexagon values for the current metric
+      const metricValues = hexPolygons.features.map(f => f.properties[selectedMetric]);
+      const nonZeroValues = metricValues.filter(v => v > 0);
+      
+      console.log(`Metric value stats for ${selectedMetric}:`, {
+        count: metricValues.length,
+        nonZeroCount: nonZeroValues.length,
+        min: Math.min(...nonZeroValues),
+        max: Math.max(...nonZeroValues),
+        exampleValues: nonZeroValues.slice(0, 5)
+      });
     }
     
     try {
@@ -179,7 +194,18 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
         map.current.on('click', 'hexagon-fill', (e) => {
           if (e.features && e.features.length > 0) {
             const feature = e.features[0];
-            setSelectedHexagon(feature.properties as HexagonData);
+            const props = feature.properties as HexagonData;
+            setSelectedHexagon(props);
+            
+            console.log("Clicked hexagon:", {
+              id: props.GRID_ID,
+              electric: props.LDAC_suitability_elec,
+              gas: props.LDAC_suitability_gas,
+              combined: props.LDAC_combined,
+              selectedMetric: selectedMetric,
+              metricValue: props[selectedMetric],
+              color: getColorForValue(props[selectedMetric], metricConfigs[selectedMetric].colorScale)
+            });
 
             // Create a popup
             new mapboxgl.Popup()
@@ -187,10 +213,10 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
               .setHTML(`
                 <div>
                   <h3 class="text-lg font-bold">Hexagon Data</h3>
-                  <p class="text-sm">${feature.properties.GRID_ID}</p>
+                  <p class="text-sm">${props.GRID_ID}</p>
                   <div class="mt-2">
                     <strong>${metricConfigs[selectedMetric].name}:</strong> 
-                    ${metricConfigs[selectedMetric].format(feature.properties[selectedMetric])}
+                    ${metricConfigs[selectedMetric].format(props[selectedMetric])}
                   </div>
                 </div>
               `)
@@ -239,19 +265,27 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
       const config = metricConfigs[selectedMetric];
       console.log(`Updating colors for ${selectedMetric} with config:`, config);
       
-      // Create a color expression for the fill color based on the new class ranges
+      // Create expressions for Mapbox to handle coloring
+      // First, collect all stops from the color scale
       const colorStops: any[] = [];
       
-      // Add each color stop from the config
+      // Special handling for transparent (value 0)
+      colorStops.push(0, 'rgba(0,0,0,0)'); // Transparent for zero values
+      
+      // Add remaining color stops
       config.colorScale.forEach(stop => {
-        colorStops.push(stop.value, stop.color);
+        if (stop.value > 0) { // Skip the transparent stop we already added
+          colorStops.push(stop.value, stop.color);
+        }
       });
       
+      console.log("Color stops for mapbox expression:", colorStops);
+      
       const colorExpression: mapboxgl.Expression = [
-        'interpolate',
-        ['linear'],
+        'step',
         ['get', selectedMetric],
-        ...colorStops
+        'rgba(0,0,0,0)', // Default color for value 0
+        ...colorStops.slice(2) // Skip the first stop as it's handled in the default
       ];
 
       // Update fill color based on selected metric
@@ -410,7 +444,12 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
                 <Label htmlFor="metric-select">Select Metric</Label>
                 <Select 
                   value={selectedMetric} 
-                  onValueChange={handleMetricChange}
+                  onValueChange={(value) => {
+                    console.log(`Changing metric to: ${value}`);
+                    setSelectedMetric(value as MetricKey);
+                    setFilterValue(null); // Reset filter when changing metrics
+                    updateHexagonColors();
+                  }}
                 >
                   <SelectTrigger id="metric-select" className="w-full">
                     <SelectValue placeholder="Select metric" />
@@ -436,7 +475,10 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
                   max={5}
                   step={0.1}
                   value={filterValue || [0, 5]}
-                  onValueChange={handleFilterChange}
+                  onValueChange={(value) => {
+                    setFilterValue(value as [number, number]);
+                    updateHexagonColors();
+                  }}
                   className="mt-2"
                 />
                 <div className="flex justify-between mt-1">
@@ -446,7 +488,13 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={resetFilters}
+                  onClick={() => {
+                    setFilterValue(null);
+                    if (map.current) {
+                      map.current.setFilter('hexagon-fill', null);
+                      map.current.setFilter('hexagon-outline', null);
+                    }
+                  }}
                   className="w-full mt-2"
                 >
                   Reset Filters
@@ -477,27 +525,11 @@ const HexMap: React.FC<HexMapProps> = ({ mapboxToken }) => {
 
       {/* Legend */}
       <div className="absolute bottom-4 left-4 z-10 bg-opacity-90 animate-fade-in">
-        <Card className="bg-card/90 backdrop-blur-sm border-border/50">
-          <CardContent className="p-3">
-            <h3 className="text-sm font-medium mb-2">{metricConfigs[selectedMetric].name}</h3>
-            <div className="flex flex-col gap-1">
-              {metricConfigs[selectedMetric].colorScale.map((stop, index) => (
-                index > 0 && (
-                  <div key={index} className="flex items-center gap-2">
-                    <div 
-                      className="h-4 w-4 rounded" 
-                      style={{ backgroundColor: stop.color }}
-                    />
-                    <span className="text-xs">
-                      {index === 1 ? '≤ 1' : index === metricConfigs[selectedMetric].colorScale.length - 1 ? '≤ 5' : `≤ ${stop.value}`}
-                    </span>
-                  </div>
-                )
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">{metricConfigs[selectedMetric].unit}</p>
-          </CardContent>
-        </Card>
+        <HexLegend 
+          metric={selectedMetric} 
+          min={0} 
+          max={5} 
+        />
       </div>
     </div>
   );
