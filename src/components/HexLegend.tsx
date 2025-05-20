@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { metricConfigs } from '@/utils/hexUtils';
+import { metricConfigs } from '@/utils/metricConfig';
 import { MetricKey } from '@/types/hex';
 
 interface HexLegendProps {
