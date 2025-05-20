@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { HexagonData, MetricKey } from '@/types/hex';
 import { useHexagonLayer } from '@/hooks/useHexagonLayer';
@@ -31,16 +31,25 @@ const HexagonLayer: React.FC<HexagonLayerProps> = ({
   });
 
   // Initial fit to hexagons
-  React.useEffect(() => {
+  useEffect(() => {
     if (!map || !map.isStyleLoaded()) return;
     
+    console.log("Map is loaded, fitting to hexagons");
     // Wait a bit for hexagons to be loaded before fitting
     const timer = setTimeout(() => {
       fitMapToHexagons(map);
     }, 1000);
     
     return () => clearTimeout(timer);
-  }, [map, selectedMetric]);
+  }, [map]);
+
+  // Force update when selectedMetric changes
+  useEffect(() => {
+    if (map && map.isStyleLoaded()) {
+      console.log("Metric changed, refreshing hexagon layer");
+      updateHexagonLayer();
+    }
+  }, [selectedMetric, map, updateHexagonLayer]);
 
   return (
     <>

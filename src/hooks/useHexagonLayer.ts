@@ -67,7 +67,8 @@ export const useHexagonLayer = ({
           type: 'fill',
           source: 'hexagons',
           paint: {
-            'fill-opacity': 0.7
+            'fill-opacity': 0.8,  // Increased from 0.7 for better visibility
+            'fill-color': '#000000'  // Default color to ensure the layer is visible
           }
         });
 
@@ -104,58 +105,59 @@ export const useHexagonLayer = ({
     
     if (!map.isStyleLoaded()) {
       console.log("Map style not fully loaded, can't update hexagon colors yet");
-      return;
+      // Try again after short delay
+      const timer = setTimeout(() => {
+        updateHexagonColors();
+      }, 200);
+      return () => clearTimeout(timer);
     }
 
     try {
+      console.log("Updating hexagon colors for metric:", selectedMetric);
       const config = metricConfigs[selectedMetric];
-      console.log(`Updating colors for ${selectedMetric} with config:`, config);
       
-      // Create a clear step expression for mapbox
-      const colorSteps: (string | number)[] = [];
+      // Use a simpler, more direct approach for coloring
+      const stops = config.colorScale.map(stop => {
+        return [stop.value, stop.color];
+      }).flat();
       
-      // Add each stop from the config's color scale
-      config.colorScale.forEach(stop => {
-        if (stop.value === 0) {
-          // Handle the transparent/zero case
-          colorSteps.push(0);
-          colorSteps.push('rgba(0,0,0,0)');
-        } else {
-          colorSteps.push(stop.value);
-          colorSteps.push(stop.color);
-        }
-      });
+      // Make sure the first color stop handles zero values
+      if (stops[0] !== 0) {
+        stops.unshift(0, 'rgba(0,0,0,0)');
+      }
       
-      console.log("Color steps for mapbox expression:", colorSteps);
+      console.log("Color stops for mapbox:", stops);
       
-      // Build the proper step expression for mapbox
-      const colorExpression: mapboxgl.Expression = [
-        'step',
-        ['get', selectedMetric],
-        'rgba(0,0,0,0)', // Default transparent for zero values
-        ...colorSteps.slice(2) // Skip the first pair as it's already the default
-      ];
+      // Check if the hexagon-fill layer exists
+      if (!map.getLayer('hexagon-fill')) {
+        console.error("hexagon-fill layer doesn't exist yet");
+        return;
+      }
 
-      // Update fill color based on selected metric
-      if (map.getLayer('hexagon-fill')) {
-        map.setPaintProperty('hexagon-fill', 'fill-color', colorExpression);
+      // Apply step expression for colors
+      map.setPaintProperty('hexagon-fill', 'fill-color', [
+        'case',
+        ['==', ['get', selectedMetric], 0], 'rgba(0,0,0,0)',  // Handle zero values
+        ['step', ['get', selectedMetric], ...stops]           // Use step for all other values
+      ]);
+      
+      console.log("Updated hexagon colors with expression");
 
-        // Apply filter if one is set
-        if (filterValue) {
-          map.setFilter('hexagon-fill', [
-            'all',
-            ['>=', selectedMetric, filterValue[0]],
-            ['<=', selectedMetric, filterValue[1]]
-          ]);
-          map.setFilter('hexagon-outline', [
-            'all',
-            ['>=', selectedMetric, filterValue[0]],
-            ['<=', selectedMetric, filterValue[1]]
-          ]);
-        } else {
-          map.setFilter('hexagon-fill', null);
-          map.setFilter('hexagon-outline', null);
-        }
+      // Apply filter if one is set
+      if (filterValue) {
+        map.setFilter('hexagon-fill', [
+          'all',
+          ['>=', selectedMetric, filterValue[0]],
+          ['<=', selectedMetric, filterValue[1]]
+        ]);
+        map.setFilter('hexagon-outline', [
+          'all',
+          ['>=', selectedMetric, filterValue[0]],
+          ['<=', selectedMetric, filterValue[1]]
+        ]);
+      } else {
+        map.setFilter('hexagon-fill', null);
+        map.setFilter('hexagon-outline', null);
       }
     } catch (error) {
       console.error("Error updating hexagon colors:", error);
@@ -183,7 +185,8 @@ export const useHexagonLayer = ({
 
   // Update hexagon colors when metric or filter changes
   useEffect(() => {
-    if (map && map.isStyleLoaded() && map.getLayer('hexagon-fill')) {
+    if (map && map.isStyleLoaded()) {
+      console.log("Metric or filter changed, updating colors");
       updateHexagonColors();
     }
   }, [filterValue, selectedMetric, map, updateHexagonColors]);

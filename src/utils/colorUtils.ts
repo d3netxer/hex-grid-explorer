@@ -18,7 +18,7 @@ export const getColorForValue = (value: number, colorScale: ColorStop[]): string
     .sort((a, b) => a.value - b.value);
   
   // If value is less than the first stop
-  if (value <= sortedStops[0].value) {
+  if (value < sortedStops[0].value) {
     return sortedStops[0].color;
   }
   
@@ -32,10 +32,9 @@ export const getColorForValue = (value: number, colorScale: ColorStop[]): string
     const currentStop = sortedStops[i];
     const nextStop = sortedStops[i + 1];
     
-    if (value >= currentStop.value && value <= nextStop.value) {
+    if (value >= currentStop.value && value < nextStop.value) {
       // For exact matches, just return the color
       if (value === currentStop.value) return currentStop.color;
-      if (value === nextStop.value) return nextStop.color;
       
       // Calculate interpolation factor
       const range = nextStop.value - currentStop.value;
