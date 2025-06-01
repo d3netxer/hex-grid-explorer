@@ -117,8 +117,8 @@ export const useHexagonLayer = ({
       console.log("Updating hexagon colors for metric:", selectedMetric);
       const config = metricConfigs[selectedMetric];
       
-      // Build the step expression properly
-      const stepArgs: (string | number)[] = ['step', ['get', selectedMetric]];
+      // Build the step expression properly with correct typing
+      const stepArgs: any[] = ['step', ['get', selectedMetric]];
       
       // Add default color
       stepArgs.push(config.colorScale[0].color);
