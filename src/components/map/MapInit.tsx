@@ -38,7 +38,28 @@ const MapInit: React.FC<MapInitProps> = ({ mapboxToken, onMapLoad }) => {
 
     // Wait for map to load
     mapInstance.on('load', () => {
-      console.log("Map loaded");
+      console.log("Map loaded, adding WMS layer");
+      
+      // Add KAPSARC WMS layer
+      mapInstance.addSource('kapsarc-gas', {
+        type: 'raster',
+        tiles: [
+          'https://webgis.kapsarc.org/server/rest/services/Master_Gas_KSA/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&f=image&format=png24&transparent=true'
+        ],
+        tileSize: 256,
+        attribution: 'KAPSARC Gas Infrastructure'
+      });
+
+      mapInstance.addLayer({
+        id: 'kapsarc-gas-layer',
+        type: 'raster',
+        source: 'kapsarc-gas',
+        paint: {
+          'raster-opacity': 0.7
+        }
+      });
+
+      console.log("WMS layer added");
       onMapLoad(mapInstance);
     });
 
