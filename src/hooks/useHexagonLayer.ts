@@ -117,24 +117,25 @@ export const useHexagonLayer = ({
       console.log("Updating hexagon colors for metric:", selectedMetric);
       const config = metricConfigs[selectedMetric];
       
-      // Create color expression for mapbox with proper typing
-      const colorExpression: any[] = [
-        'case',
-        ['==', ['get', selectedMetric], 0], 'rgba(0,0,0,0)',
-        [
-          'step',
-          ['get', selectedMetric],
-          config.colorScale[0].color, // Default color
-        ]
-      ];
+      // Build the step expression properly
+      const stepArgs: (string | number)[] = ['step', ['get', selectedMetric]];
       
-      // Add proper stops pairs (value, color)
-      const stepExpression = colorExpression[3] as any[];
+      // Add default color
+      stepArgs.push(config.colorScale[0].color);
+      
+      // Add color stops (value, color pairs)
       config.colorScale.forEach((stop, index) => {
         if (index > 0) { // Skip the first one as it's already the default
-          stepExpression.push(stop.value, stop.color);
+          stepArgs.push(stop.value, stop.color);
         }
       });
+      
+      // Create the complete color expression
+      const colorExpression = [
+        'case',
+        ['==', ['get', selectedMetric], 0], 'rgba(0,0,0,0)',
+        stepArgs
+      ];
       
       console.log("Color expression:", JSON.stringify(colorExpression));
       
@@ -145,7 +146,7 @@ export const useHexagonLayer = ({
       }
 
       // Apply expression for colors
-      map.setPaintProperty('hexagon-fill', 'fill-color', colorExpression);
+      map.setPaintProperty('hexagon-fill', 'fill-color', colorExpression as any);
       
       console.log("Updated hexagon colors with expression");
 
