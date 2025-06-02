@@ -39,11 +39,12 @@ const WfsInteractions: React.FC<WfsInteractionsProps> = ({ map }) => {
     if (!map) return;
     
     const layerIds = ['gas-pipelines', 'gas-facilities', 'gas-areas'];
+    const eventHandlers: Array<{ layerId: string; clickHandler: any; mouseEnterHandler: any; mouseLeaveHandler: any }> = [];
     
     layerIds.forEach(layerId => {
       // Only add interactions if layer exists
       if (map.getLayer(layerId)) {
-        // Click handlers
+        // Create handler functions
         const handleClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
           if (e.features && e.features.length > 0) {
             const feature = e.features[0];
@@ -51,7 +52,6 @@ const WfsInteractions: React.FC<WfsInteractionsProps> = ({ map }) => {
           }
         };
 
-        // Hover handlers
         const handleMouseEnter = () => {
           map.getCanvas().style.cursor = 'pointer';
         };
@@ -59,6 +59,14 @@ const WfsInteractions: React.FC<WfsInteractionsProps> = ({ map }) => {
         const handleMouseLeave = () => {
           map.getCanvas().style.cursor = '';
         };
+
+        // Store handlers for cleanup
+        eventHandlers.push({
+          layerId,
+          clickHandler: handleClick,
+          mouseEnterHandler: handleMouseEnter,
+          mouseLeaveHandler: handleMouseLeave
+        });
 
         // Add event listeners
         map.on('click', layerId, handleClick);
@@ -69,11 +77,11 @@ const WfsInteractions: React.FC<WfsInteractionsProps> = ({ map }) => {
 
     // Return cleanup function
     return () => {
-      layerIds.forEach(layerId => {
+      eventHandlers.forEach(({ layerId, clickHandler, mouseEnterHandler, mouseLeaveHandler }) => {
         if (map.getLayer(layerId)) {
-          map.off('click', layerId);
-          map.off('mouseenter', layerId);
-          map.off('mouseleave', layerId);
+          map.off('click', layerId, clickHandler);
+          map.off('mouseenter', layerId, mouseEnterHandler);
+          map.off('mouseleave', layerId, mouseLeaveHandler);
         }
       });
     };
