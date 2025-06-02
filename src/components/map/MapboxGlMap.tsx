@@ -4,6 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import { HexagonData, MetricKey } from '@/types/hex';
 import MapInit from './MapInit';
 import HexagonLayer from './HexagonLayer';
+import WfsInteractions from './WfsInteractions';
 import FitToDataButton from './FitToDataButton';
 import { fitMapToHexagons } from '@/utils/mapBounds';
 
@@ -50,13 +51,16 @@ const MapboxGlMap: React.FC<MapboxGlMapProps> = ({
       />
       
       {map && mapLoaded && (
-        <HexagonLayer
-          map={map}
-          selectedMetric={selectedMetric}
-          filterValue={filterValue}
-          onHexagonSelect={onHexagonSelect}
-          onLayerReady={handleLayerReady}
-        />
+        <>
+          <HexagonLayer
+            map={map}
+            selectedMetric={selectedMetric}
+            filterValue={filterValue}
+            onHexagonSelect={onHexagonSelect}
+            onLayerReady={handleLayerReady}
+          />
+          <WfsInteractions map={map} />
+        </>
       )}
       
       <FitToDataButton onClick={handleFitToData} />

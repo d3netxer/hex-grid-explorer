@@ -38,7 +38,7 @@ const MapInit: React.FC<MapInitProps> = ({ mapboxToken, onMapLoad }) => {
 
     // Wait for map to load
     mapInstance.on('load', () => {
-      console.log("Map loaded, adding WMS layer");
+      console.log("Map loaded, adding WMS and WFS layers");
       
       // Add KAPSARC WMS layer
       mapInstance.addSource('kapsarc-gas', {
@@ -58,6 +58,91 @@ const MapInit: React.FC<MapInitProps> = ({ mapboxToken, onMapLoad }) => {
           'raster-opacity': 0.7
         }
       });
+
+      // Add WFS data source for gas infrastructure features
+      const loadWFSData = async () => {
+        try {
+          console.log("Loading WFS gas infrastructure data");
+          
+          // Request GeoJSON from WFS service
+          const wfsUrl = 'https://webgis.kapsarc.org/server/services/Hosted/MasterGasSystem_WFS/MapServer/WFSServer?service=WFS&version=1.1.0&request=GetFeature&typeName=MasterGasSystem_WFS:Gas_Infrastructure&outputFormat=application/json&srsName=EPSG:4326';
+          
+          const response = await fetch(wfsUrl);
+          const geoJsonData = await response.json();
+          
+          console.log("WFS data loaded:", geoJsonData);
+          
+          // Add WFS source
+          mapInstance.addSource('gas-infrastructure', {
+            type: 'geojson',
+            data: geoJsonData
+          });
+
+          // Add pipelines layer (lines)
+          mapInstance.addLayer({
+            id: 'gas-pipelines',
+            type: 'line',
+            source: 'gas-infrastructure',
+            filter: ['==', '$type', 'LineString'],
+            paint: {
+              'line-color': '#ff6b35',
+              'line-width': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                4, 1,
+                10, 3,
+                15, 5
+              ],
+              'line-opacity': 0.8
+            }
+          });
+
+          // Add facilities layer (points)
+          mapInstance.addLayer({
+            id: 'gas-facilities',
+            type: 'circle',
+            source: 'gas-infrastructure',
+            filter: ['==', '$type', 'Point'],
+            paint: {
+              'circle-color': '#ff6b35',
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                4, 2,
+                10, 6,
+                15, 10
+              ],
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 1,
+              'circle-opacity': 0.9
+            }
+          });
+
+          // Add areas layer (polygons)
+          mapInstance.addLayer({
+            id: 'gas-areas',
+            type: 'fill',
+            source: 'gas-infrastructure',
+            filter: ['==', '$type', 'Polygon'],
+            paint: {
+              'fill-color': '#ff6b35',
+              'fill-opacity': 0.3,
+              'fill-outline-color': '#ff6b35'
+            }
+          });
+
+          console.log("WFS layers added successfully");
+          
+        } catch (error) {
+          console.error("Error loading WFS data:", error);
+          // Fallback: try alternative endpoint or show error message
+        }
+      };
+
+      // Load WFS data
+      loadWFSData();
 
       console.log("WMS layer added");
       onMapLoad(mapInstance);
